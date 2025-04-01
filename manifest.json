@@ -1,0 +1,6 @@
+{
+    "name":"twitch-bot",
+    "description":"Allows viewers to control AI NPC's via twitch chat",
+    "config_url":"/HerikaServer/ext/twitch-bot/index.php",
+    "config_url_target": "_blank"
+}

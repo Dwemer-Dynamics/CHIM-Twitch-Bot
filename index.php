@@ -83,20 +83,26 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Twitch Bot Control</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        .status { font-size: 20px; font-weight: bold; color: <?= $is_running ? 'green' : 'red' ?>; }
-        .log-box {width: 80%;margin: auto;padding: 10px;background: #f4f4f4;border: 1px solid #ccc;text-align: left;background-color: black;font-family: monospace;color: greenyellow;}
-        input { margin: 5px; padding: 5px; width: 300px; }
-        button { margin: 5px; padding: 10px; }
-    </style>
+    <title>CHIM Twitch Bot Control</title>
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="stylesheet" href="main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>🎮 Twitch Bot Control</h1>
+    <h1><img src="images/ClavicusVileMask.png" alt="Clavicus Vile Mask" class="title-icon"> CHIM Twitch Bot Control Panel</h1>
+
+    <div class="commands-section">
+        <h2>🎯 Available Commands</h2>
+        <div class="command-card">
+            <h3>Rolemaster</h3>
+            <p class="command-format">Rolemaster: (Enter request here)</p>
+            <p class="command-description">Will prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</p>
+            <p class="command-example">E.G. Rolemaster: Make Mikael tell a story.</p>
+        </div>
+    </div>
 
     <form method="post">
-        <h2>⚙️ Bot Configuration</h2>
+        <h2>⚙️ Twitch Connection Settings</h2>
         <input type="text" name="tbot_username" placeholder="Username" value="<?= htmlspecialchars($env_vars['TBOT_USERNAME'] ?? '') ?>" required> ::
         <input type="text" name="tbot_oauth" placeholder="OAUTH TOKEN " value="<?= htmlspecialchars($env_vars['TBOT_OAUTH'] ?? '') ?>" required> <a href="https://twitchtokengenerator.com/" target="_blank">Obtain</a> :: 
         <input type="text" name="tbot_channel" placeholder="TBOT_CHANNEL" value="<?= htmlspecialchars($env_vars['TBOT_CHANNEL'] ?? '') ?>" required><br>
