@@ -144,7 +144,7 @@ function executeRolemasterCommand($socket, $channel, $user, $command)
 {
     echo "📝 Executing command from $user: $command\n";
     $escapedCommand = escapeshellarg($command);
-    exec("php /var/www/html/HerikaServer/service/manager.php $escapedCommand", $output, $returnCode);
+    exec("php /var/www/html/HerikaServer/service/manager.php rolemaster $escapedCommand", $output, $returnCode);
     $response = $returnCode === 0 ? "Command accepted" : "❌ Error executing command";
     sendMessage($socket, $channel, $response);
 }
