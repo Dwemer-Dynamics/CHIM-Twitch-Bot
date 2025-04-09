@@ -143,8 +143,49 @@ function runBot($server, $port, $username, $oauth, $channel)
 function executeRolemasterCommand($socket, $channel, $user, $command)
 {
     echo "📝 Executing command from $user: $command\n";
-    $escapedCommand = escapeshellarg($command);
-    exec("php /var/www/html/HerikaServer/service/manager.php rolemaster $escapedCommand", $output, $returnCode);
+    
+    // Input validation - only allow alphanumeric characters, spaces, and basic punctuation
+    if (!preg_match('/^[a-zA-Z0-9\s\.,!?]+$/', $command)) {
+        sendMessage($socket, $channel, "❌ Invalid command format. Only letters, numbers, spaces and basic punctuation are allowed.");
+        return;
+    }
+    
+    // Command length limit
+    if (strlen($command) > 1024) {
+        sendMessage($socket, $channel, "❌ Command too long. Maximum length is 100 characters.");
+        return;
+    }
+    
+    // Sanitize the command
+    $sanitizedCommand = preg_replace('/[^a-zA-Z0-9\s\.,!?]/', '', $command);
+    
+    // Use absolute path for the PHP executable
+    $phpPath = '/usr/bin/php';
+    if (!file_exists($phpPath)) {
+        sendMessage($socket, $channel, "❌ System error: PHP executable not found");
+        return;
+    }
+    
+    // Use absolute path for the script
+    $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
+    if (!file_exists($scriptPath)) {
+        sendMessage($socket, $channel, "❌ System error: Manager script not found");
+        return;
+    }
+    
+    // Execute command with proper escaping and using absolute paths
+    $escapedCommand = escapeshellarg($sanitizedCommand);
+    $cmd = sprintf('%s %s rolemaster %s', 
+        escapeshellarg($phpPath),
+        escapeshellarg($scriptPath),
+        $escapedCommand
+    );
+    
+    // Execute with proper error handling
+    $output = [];
+    $returnCode = 0;
+    exec($cmd, $output, $returnCode);
+    
     $response = $returnCode === 0 ? "Command accepted" : "❌ Error executing command";
     sendMessage($socket, $channel, $response);
 }
