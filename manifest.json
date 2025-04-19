@@ -4,7 +4,7 @@
     "config_url":"/HerikaServer/ext/twitch-bot/index.php",
     "config_url_target": "_blank",
     "git_repo":"RANGROO/CHIM-Twitch-Bot",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "schema_version":2 
  
 }
