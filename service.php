@@ -121,9 +121,7 @@ function runBot($server, $port, $username, $oauth, $channel)
                 echo "💬 $user: $message\n";
                 
                 if (strpos($message, "Rolemaster:") === 0) {
-                    $command = trim(substr($message, strlen("Rolemaster:")));
-                    echo "🧙‍♂️ Command Detected: $command\n";
-                    executeRolemasterCommand($socket, $channel, $user, $command);
+                    parseRolemasterCommand($socket, $channel, $user, $message);
                 }
             }
         }
@@ -140,54 +138,76 @@ function runBot($server, $port, $username, $oauth, $channel)
     fclose($socket);
 }
 
-function executeRolemasterCommand($socket, $channel, $user, $command)
+function executeCommand($socket, $channel, $user, $task, $type, $freeText)
 {
-    echo "📝 Executing command from $user: $command\n";
-    
+    echo "📝 Executing $task command ($type) from $user: $freeText\n";
+
     // Input validation - only allow alphanumeric characters, spaces, and basic punctuation
-    if (!preg_match('/^[a-zA-Z0-9\s\.,!?]+$/', $command)) {
+    if (!preg_match('/^[a-zA-Z0-9\s\.,!?]+$/', $freeText)) {
         sendMessage($socket, $channel, "❌ Invalid command format. Only letters, numbers, spaces and basic punctuation are allowed.");
         return;
     }
-    
+
     // Command length limit
-    if (strlen($command) > 1024) {
-        sendMessage($socket, $channel, "❌ Command too long. Maximum length is 100 characters.");
+    if (strlen($freeText) > 1024) {
+        sendMessage($socket, $channel, "❌ Command too long. Maximum length is 1024 characters.");
         return;
     }
-    
-    // Sanitize the command
-    $sanitizedCommand = preg_replace('/[^a-zA-Z0-9\s\.,!?]/', '', $command);
-    
+
+    // Sanitize the free text
+    $sanitizedFreeText = preg_replace('/[^a-zA-Z0-9\s\.,!?]/', '', $freeText);
+
     // Use absolute path for the PHP executable
     $phpPath = '/usr/bin/php';
     if (!file_exists($phpPath)) {
         sendMessage($socket, $channel, "❌ System error: PHP executable not found");
         return;
     }
-    
+
     // Use absolute path for the script
     $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
     if (!file_exists($scriptPath)) {
         sendMessage($socket, $channel, "❌ System error: Manager script not found");
         return;
     }
-    
+
     // Execute command with proper escaping and using absolute paths
-    $escapedCommand = escapeshellarg($sanitizedCommand);
-    $cmd = sprintf('%s %s rolemaster %s', 
+    $cmd = sprintf('%s %s %s %s %s',
         escapeshellarg($phpPath),
         escapeshellarg($scriptPath),
-        $escapedCommand
+        escapeshellarg($task),
+        escapeshellarg($type),
+        escapeshellarg($sanitizedFreeText)
     );
-    
+
     // Execute with proper error handling
     $output = [];
     $returnCode = 0;
     exec($cmd, $output, $returnCode);
-    
+
     $response = $returnCode === 0 ? "Command accepted" : "❌ Error executing command";
     sendMessage($socket, $channel, $response);
+}
+
+function parseRolemasterCommand($socket, $channel, $user, $message)
+{
+    // Parse the message in the format: Rolemaster:type of command:free text
+    if (preg_match('/^Rolemaster:([^:]+):(.*)$/', $message, $matches)) {
+        $type = trim($matches[1]);
+        $freeText = trim($matches[2]);
+
+        // Validate the type
+        $validTypes = ['instruction', 'suggestion', 'impersonation'];
+        if (!in_array($type, $validTypes)) {
+            sendMessage($socket, $channel, "❌ Invalid command type. Valid types are: " . implode(', ', $validTypes));
+            return;
+        }
+
+        // Execute the command
+        executeCommand($socket, $channel, $user, 'rolemaster', $type, $freeText);
+    } else {
+        sendMessage($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type of command:free text");
+    }
 }
 
 function sendMessage($socket, $channel, $message)

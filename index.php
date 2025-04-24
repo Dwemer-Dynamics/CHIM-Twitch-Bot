@@ -94,10 +94,22 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     <div class="commands-section">
         <h2>🎯 Available Commands</h2>
         <div class="command-card">
-            <h3>Rolemaster</h3>
-            <p class="command-format">Rolemaster: (Enter request here)</p>
+            <h3>Instruction</h3>
+            <p class="command-format">Rolemaster:instruction: (Enter request here)</p>
             <p class="command-description">Will prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</p>
-            <p class="command-example">E.G. Rolemaster: Make Mikael tell a story.</p>
+            <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
+        </div>
+        <div class="command-card">
+            <h3>Suggestion</h3>
+            <p class="command-format">Rolemaster:suggestion:  (Enter request here)</p>
+            <p class="command-description">Will prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</p>
+            <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
+        </div>
+        <div class="command-card">
+            <h3>Impersonation</h3>
+            <p class="command-format">Rolemaster:impersonation:  (Enter request here)</p>
+            <p class="command-description">Player will say that sentence</p>
+            <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
         </div>
     </div>
 
