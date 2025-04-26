@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "TBOT_USERNAME" => trim($_POST['tbot_username']),
             "TBOT_OAUTH" => trim($_POST['tbot_oauth']),
             "TBOT_CHANNEL" => trim($_POST['tbot_channel']),
+            "TBOT_COOLDOWN" => trim($_POST['tbot_cooldown']),
         ];
         file_put_contents($env_file, json_encode($env_vars));
     }
@@ -31,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "⚠️ Bot is already running!";
         } else {
             // Set environment variables and start the bot
-            $env_command = "TBOT_USERNAME='{$env_vars["TBOT_USERNAME"]}' TBOT_OAUTH='{$env_vars["TBOT_OAUTH"]}' TBOT_CHANNEL='{$env_vars["TBOT_CHANNEL"]}'";
+            $env_command = "TBOT_USERNAME='{$env_vars["TBOT_USERNAME"]}' TBOT_OAUTH='{$env_vars["TBOT_OAUTH"]}' TBOT_CHANNEL='{$env_vars["TBOT_CHANNEL"]}' TBOT_COOLDOWN='{$env_vars["TBOT_COOLDOWN"]}'";
             $command = "$env_command php $bot_script > $log_file 2>&1 & echo $!";
             error_log($command);
             $pid = shell_exec($command);
@@ -110,6 +111,14 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         <input type="text" id="channel" name="tbot_channel" placeholder="Channel Name" value="<?= htmlspecialchars($env_vars['TBOT_CHANNEL'] ?? '') ?>" required>
                     </div>
                 </div>
+                
+                <div class="settings-group">
+                    <div class="input-container">
+                        <label for="cooldown">Command Cooldown (seconds)</label>
+                        <input type="number" id="cooldown" name="tbot_cooldown" placeholder="30" min="0" value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" required>
+                    </div>
+                </div>
+
                 <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
                 <div class="button-group">
                     <button type="submit" name="action" value="start">▶️ Start Bot</button>

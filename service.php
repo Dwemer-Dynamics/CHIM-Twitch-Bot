@@ -11,6 +11,12 @@ $TWITCH_IRC_PORT = 6667;
 $USERNAME = getenv("TBOT_USERNAME");
 $OAUTH_TOKEN = "oauth:" . getenv("TBOT_OAUTH");
 $CHANNEL = getenv("TBOT_CHANNEL");
+$COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?? "30");
+
+// Store last command time and invalid command tracking
+$last_command_time = 0;
+$invalid_command_count = 0;
+$last_invalid_time = 0;
 
 echo date(DATE_RFC2822) . PHP_EOL;
 echo "Using config values:
@@ -18,6 +24,7 @@ TWITCH_IRC_SERVER: $TWITCH_IRC_SERVER
 USERNAME: $USERNAME
 OAUTH_TOKEN: $OAUTH_TOKEN
 CHANNEL: $CHANNEL
+COOLDOWN: $COOLDOWN seconds
 " . PHP_EOL;
 
 $child_pid = null;
@@ -140,18 +147,19 @@ function runBot($server, $port, $username, $oauth, $channel)
 
 function executeCommand($socket, $channel, $user, $task, $type, $freeText)
 {
+    global $COOLDOWN, $invalid_command_count;
     echo "📝 Executing $task command ($type) from $user: $freeText\n";
 
     // Input validation - only allow alphanumeric characters, spaces, and basic punctuation
     if (!preg_match('/^[a-zA-Z0-9\s\.,!?]+$/', $freeText)) {
-        sendMessage($socket, $channel, "❌ Invalid command format. Only letters, numbers, spaces and basic punctuation are allowed.");
-        return;
+        handleInvalidCommand($socket, $channel, "❌ Invalid command format. Only letters, numbers, spaces and basic punctuation are allowed.");
+        return false;
     }
 
     // Command length limit
     if (strlen($freeText) > 1024) {
-        sendMessage($socket, $channel, "❌ Command too long. Maximum length is 1024 characters.");
-        return;
+        handleInvalidCommand($socket, $channel, "❌ Command too long. Maximum length is 1024 characters.");
+        return false;
     }
 
     // Sanitize the free text
@@ -160,15 +168,15 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     // Use absolute path for the PHP executable
     $phpPath = '/usr/bin/php';
     if (!file_exists($phpPath)) {
-        sendMessage($socket, $channel, "❌ System error: PHP executable not found");
-        return;
+        handleInvalidCommand($socket, $channel, "❌ System error: PHP executable not found");
+        return false;
     }
 
     // Use absolute path for the script
     $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
     if (!file_exists($scriptPath)) {
-        sendMessage($socket, $channel, "❌ System error: Manager script not found");
-        return;
+        handleInvalidCommand($socket, $channel, "❌ System error: Manager script not found");
+        return false;
     }
 
     // Execute command with proper escaping and using absolute paths
@@ -185,12 +193,35 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     $returnCode = 0;
     exec($cmd, $output, $returnCode);
 
-    $response = $returnCode === 0 ? "Command accepted" : "❌ Error executing command";
-    sendMessage($socket, $channel, $response);
+    if ($returnCode === 0) {
+        // Reset invalid command count on successful command
+        $invalid_command_count = 0;
+        sendMessage($socket, $channel, "Command accepted ($COOLDOWN second cooldown until next command)");
+        return true;
+    } else {
+        handleInvalidCommand($socket, $channel, "❌ Error executing command");
+        return false;
+    }
 }
 
 function parseRolemasterCommand($socket, $channel, $user, $message)
 {
+    global $last_command_time, $COOLDOWN, $invalid_command_count, $last_invalid_time;
+    
+    // Check cooldown
+    $current_time = time();
+    $time_since_last = $current_time - $last_command_time;
+    
+    if ($time_since_last < $COOLDOWN) {
+        // Silently ignore during cooldown
+        return;
+    }
+
+    // Reset invalid command count if more than 10 seconds have passed
+    if ($current_time - $last_invalid_time > 10) {
+        $invalid_command_count = 0;
+    }
+
     // Parse the message in the format: Rolemaster:type of command:free text
     if (preg_match('/^Rolemaster:([^:]+):(.*)$/', $message, $matches)) {
         $type = trim($matches[1]);
@@ -199,14 +230,36 @@ function parseRolemasterCommand($socket, $channel, $user, $message)
         // Validate the type
         $validTypes = ['instruction', 'suggestion', 'impersonation'];
         if (!in_array($type, $validTypes)) {
-            sendMessage($socket, $channel, "❌ Invalid command type. Valid types are: " . implode(', ', $validTypes));
+            handleInvalidCommand($socket, $channel, "❌ Invalid command type. Valid types are: " . implode(', ', $validTypes));
             return;
         }
 
         // Execute the command
-        executeCommand($socket, $channel, $user, 'rolemaster', $type, $freeText);
+        if (executeCommand($socket, $channel, $user, 'rolemaster', $type, $freeText)) {
+            // Reset invalid command count on successful command
+            $invalid_command_count = 0;
+            // Update cooldown time for successful command
+            $last_command_time = $current_time;
+        }
     } else {
-        sendMessage($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type of command:free text");
+        handleInvalidCommand($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type of command:free text");
+    }
+}
+
+function handleInvalidCommand($socket, $channel, $errorMessage) {
+    global $invalid_command_count, $last_invalid_time, $last_command_time, $COOLDOWN;
+    
+    $current_time = time();
+    $last_invalid_time = $current_time;
+    $invalid_command_count++;
+
+    if ($invalid_command_count >= 3) {
+        // Trigger cooldown after 3 invalid attempts
+        $last_command_time = $current_time;
+        $invalid_command_count = 0;
+        sendMessage($socket, $channel, "$errorMessage (Cooldown activated due to multiple invalid attempts)");
+    } else {
+        sendMessage($socket, $channel, $errorMessage);
     }
 }
 

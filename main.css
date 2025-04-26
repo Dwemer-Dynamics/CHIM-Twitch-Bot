@@ -184,4 +184,30 @@ a:hover {
     height: 40px;
     object-fit: contain;
     vertical-align: middle;
+}
+
+.settings-group {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--twitch-gray);
+}
+
+.settings-group .input-container {
+    max-width: 200px;
+}
+
+input[type="number"] {
+    width: 100%;
+    min-width: 0;
+    background-color: var(--twitch-dark);
+    border: 1px solid var(--twitch-gray);
+    color: var(--twitch-light);
+    padding: 10px;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
 } 
