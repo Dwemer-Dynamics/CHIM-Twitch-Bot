@@ -6,13 +6,24 @@ error_reporting(E_ALL);
 // Enable async signals (PHP 7.1+)
 pcntl_async_signals(true);
 
+// Load environment variables from bot_env.json
+$env_file = __DIR__ . "/bot_env.json";
+if (file_exists($env_file)) {
+    $env_vars = json_decode(file_get_contents($env_file), true);
+    if ($env_vars) {
+        foreach ($env_vars as $key => $value) {
+            putenv("$key=$value");
+        }
+    }
+}
+
 $TWITCH_IRC_SERVER = "irc.chat.twitch.tv";
 $TWITCH_IRC_PORT = 6667;
 $USERNAME = getenv("TBOT_USERNAME");
-$OAUTH_TOKEN = "oauth:" . getenv("TBOT_OAUTH");
+$OAUTH_TOKEN = "oauth:" . str_replace("oauth:", "", getenv("TBOT_OAUTH")); // Remove oauth: if already present
 $CHANNEL = getenv("TBOT_CHANNEL");
-$COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?? "30");
-$MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?? "0") === "1";
+$COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?: "30"); // Default to 30 if not set
+$MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 
 // Store last command time and invalid command tracking
 $last_command_time = 0;

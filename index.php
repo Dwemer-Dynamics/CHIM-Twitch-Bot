@@ -28,28 +28,39 @@ $notification = '';
 $notification_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Load existing env vars
+    $env_vars = file_exists($env_file) ? json_decode(file_get_contents($env_file), true) : [];
+
+    // Update connection settings if they are being submitted
     if (isset($_POST['tbot_username'], $_POST['tbot_oauth'], $_POST['tbot_channel'])) {
-        $env_vars = [
+        $env_vars = array_merge($env_vars, [
             "TBOT_USERNAME" => trim($_POST['tbot_username']),
             "TBOT_OAUTH" => trim($_POST['tbot_oauth']),
-            "TBOT_CHANNEL" => trim($_POST['tbot_channel']),
-            "TBOT_COOLDOWN" => trim($_POST['tbot_cooldown']),
-            "TBOT_MODS_ONLY" => isset($_POST['tbot_mods_only']) ? "1" : "0",
-        ];
+            "TBOT_CHANNEL" => trim($_POST['tbot_channel'])
+        ]);
+        
+        // Ensure bot control settings have defaults if not set
+        if (!isset($env_vars['TBOT_COOLDOWN'])) {
+            $env_vars['TBOT_COOLDOWN'] = "30";
+        }
+        if (!isset($env_vars['TBOT_MODS_ONLY'])) {
+            $env_vars['TBOT_MODS_ONLY'] = "0";
+        }
+        
         file_put_contents($env_file, json_encode($env_vars));
     }
 
     if ($_POST['action'] === 'start') {
         if (file_exists($pid_file)) {
-            $notification = "⚠️ Bot is already running!";
+            $notification = "Bot is already running";
             $notification_type = "warning";
         } else {
             // Set environment variables and start the bot
-            $env_command = "TBOT_USERNAME='{$env_vars["TBOT_USERNAME"]}' "
-                        . "TBOT_OAUTH='{$env_vars["TBOT_OAUTH"]}' "
-                        . "TBOT_CHANNEL='{$env_vars["TBOT_CHANNEL"]}' "
-                        . "TBOT_COOLDOWN='{$env_vars["TBOT_COOLDOWN"]}' "
-                        . "TBOT_MODS_ONLY='{$env_vars["TBOT_MODS_ONLY"]}'";
+            $env_command = '';
+            foreach ($env_vars as $key => $value) {
+                $env_command .= $key . '=' . escapeshellarg($value) . ' ';
+            }
+            
             $command = "$env_command php $bot_script > $log_file 2>&1 & echo $!";
             error_log($command);
             $pid = shell_exec($command);
@@ -61,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($_POST['action'] === 'stop') {
         if (file_exists($pid_file)) {
             $pid = file_get_contents($pid_file);
-            shell_exec("kill $pid"); // Stop the bot
+            shell_exec("kill $pid");
             unlink($pid_file);
             $notification = "Bot stopped";
             $notification_type = "error";
@@ -156,6 +167,99 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             showToast(<?= json_encode($notification) ?>, <?= json_encode($notification_type) ?>);
             <?php endif; ?>
         });
+
+        function updateControlsState(isRunning) {
+            const cooldownInput = document.getElementById('cooldown');
+            const modsOnlyInput = document.getElementById('mods_only');
+            const saveButton = document.querySelector('.save-controls-btn');
+            const settingsGroup = document.querySelector('.settings-group');
+            const configureButton = document.querySelector('.settings-button');
+            const connectionInputs = document.querySelectorAll('#connection-form input');
+            const connectionButtons = document.querySelectorAll('#connection-form button');
+
+            // Disable bot controls
+            cooldownInput.disabled = isRunning;
+            modsOnlyInput.disabled = isRunning;
+            saveButton.disabled = isRunning;
+            configureButton.disabled = isRunning;
+            
+            // Disable connection settings
+            connectionInputs.forEach(input => input.disabled = isRunning);
+            connectionButtons.forEach(button => button.disabled = isRunning);
+            
+            if (isRunning) {
+                settingsGroup.classList.add('disabled');
+                saveButton.innerHTML = '⚠️ Stop bot to apply new settings';
+                if (document.getElementById('settingsModal').classList.contains('show')) {
+                    hideModal();
+                    showToast('Stop the bot before changing connection settings', 'warning');
+                }
+            } else {
+                settingsGroup.classList.remove('disabled');
+                saveButton.innerHTML = '💾 Save Bot Controls';
+            }
+        }
+
+        function saveBotControls() {
+            if (document.querySelector('.settings-group').classList.contains('disabled')) {
+                showToast('Stop the bot before changing settings', 'warning');
+                return;
+            }
+
+            const cooldown = Math.max(0, parseInt(document.getElementById('cooldown').value) || 30);
+            const modsOnly = document.getElementById('mods_only').checked;
+
+            fetch('update_bot_settings.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cooldown: cooldown,
+                    modsOnly: modsOnly
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Bot controls saved successfully', 'success');
+                    document.getElementById('cooldown').value = data.settings.cooldown;
+                    document.getElementById('mods_only').checked = data.settings.modsOnly;
+                } else {
+                    showToast('Failed to save bot controls: ' + data.error, 'error');
+                    loadSettings();
+                }
+            })
+            .catch(error => {
+                showToast('Error saving bot controls: ' + error, 'error');
+                loadSettings();
+            });
+        }
+
+        function loadSettings() {
+            fetch('get_settings.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.settings) {
+                        // Set default values if not present
+                        document.getElementById('cooldown').value = data.settings.cooldown || 30;
+                        document.getElementById('mods_only').checked = data.settings.modsOnly || false;
+                    } else {
+                        // Set default values if no settings found
+                        document.getElementById('cooldown').value = 30;
+                        document.getElementById('mods_only').checked = false;
+                    }
+                })
+                .catch(error => {
+                    showToast('Error loading settings: ' + error, 'error');
+                    // Set default values on error
+                    document.getElementById('cooldown').value = 30;
+                    document.getElementById('mods_only').checked = false;
+                });
+        }
+
+        // Initialize controls state
+        updateControlsState(<?= $is_running ? 'true' : 'false' ?>);
     </script>
 </head>
 <body>
@@ -164,45 +268,80 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
     <div class="page-grid">
         <div class="connection-settings">
-            <form method="post" id="bot-form">
-                <h2>⚙️ Twitch Connection Settings</h2>
-                <div class="input-group">
-                    <div class="input-container">
-                        <label for="username">Bot Username</label>
-                        <input type="text" id="username" name="tbot_username" placeholder="Username" value="<?= htmlspecialchars($env_vars['TBOT_USERNAME'] ?? '') ?>" required>
-                    </div>
-                    <div class="input-container">
-                        <label for="oauth">OAuth Token</label>
-                        <input type="password" id="oauth" name="tbot_oauth" placeholder="OAUTH TOKEN" value="<?= htmlspecialchars($env_vars['TBOT_OAUTH'] ?? '') ?>" required>
-                        <a href="https://twitchtokengenerator.com/" target="_blank">Obtain OAuth Token</a>
-                    </div>
-                    <div class="input-container">
-                        <label for="channel">Channel Name</label>
-                        <input type="text" id="channel" name="tbot_channel" placeholder="Channel Name" value="<?= htmlspecialchars($env_vars['TBOT_CHANNEL'] ?? '') ?>" required>
-                    </div>
-                </div>
-                
-                <div class="settings-group">
+            <div class="settings-header">
+                <h2>⚙️ Bot Controls</h2>
+                <button type="button" class="settings-button" onclick="showModal()" title="Configure Connection Settings" <?= $is_running ? 'disabled' : '' ?>>
+                    Configure Connection Settings
+                </button>
+            </div>
+
+            <form method="post" id="bot-controls-form" onsubmit="return false;">
+                <div class="settings-group <?= $is_running ? 'disabled' : '' ?>">
                     <div class="cooldown-container">
-                        <input type="number" id="cooldown" name="tbot_cooldown" placeholder="30" min="0" value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" required>
+                        <input type="number" id="cooldown" name="tbot_cooldown" placeholder="30" min="0" 
+                            value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" required>
                         <label for="cooldown">Command Cooldown (seconds)</label>
                     </div>
                     <div class="toggle-container">
                         <label class="toggle-switch">
-                            <input type="checkbox" name="tbot_mods_only" <?= ($env_vars['TBOT_MODS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
+                            <input type="checkbox" id="mods_only" name="tbot_mods_only" 
+                                <?= ($env_vars['TBOT_MODS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
                             <span class="toggle-slider"></span>
                         </label>
                         <span class="toggle-label">Mods Only Mode</span>
                     </div>
-                </div>
-
-                <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
-                <div class="button-group">
-                    <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?>">
-                        <?= $is_running ? '⏹ Stop Bot' : '▶️ Start Bot' ?>
+                    <button type="button" onclick="saveBotControls()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
+                        <?= $is_running ? '⚠️ Stop bot to apply new settings' : '💾 Save Bot Controls' ?>
                     </button>
                 </div>
             </form>
+
+            <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
+            <div class="button-group">
+                <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?>" form="connection-form">
+                    <?= $is_running ? '⏹ Stop Bot' : '▶️ Start Bot' ?>
+                </button>
+            </div>
+        </div>
+
+        <!-- Connection Settings Modal -->
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal">
+                <button class="modal-close" onclick="hideModal()">×</button>
+                <h2>⚙️ Connection Settings</h2>
+                <form method="post" id="connection-form">
+                    <div class="input-group">
+                        <div class="input-container">
+                            <label for="username">Bot Username</label>
+                            <input type="text" id="username" name="tbot_username" placeholder="Username" 
+                                value="<?= htmlspecialchars($env_vars['TBOT_USERNAME'] ?? '') ?>" required>
+                            <p class="input-description">The Twitch username of your bot account. This should be a separate account from your main Twitch account.</p>
+                        </div>
+
+                        <div class="input-container">
+                            <label for="oauth">OAuth Token</label>
+                            <input type="password" id="oauth" name="tbot_oauth" placeholder="OAUTH TOKEN" 
+                                value="<?= htmlspecialchars($env_vars['TBOT_OAUTH'] ?? '') ?>" required>
+                            <p class="input-description">
+                                The OAuth token for your bot account. This allows the bot to connect to Twitch chat.
+                                <a href="https://twitchtokengenerator.com/" target="_blank">Click here to generate a token</a>
+                            </p>
+                        </div>
+
+                        <div class="input-container">
+                            <label for="channel">Channel Name</label>
+                            <input type="text" id="channel" name="tbot_channel" placeholder="Channel Name" 
+                                value="<?= htmlspecialchars($env_vars['TBOT_CHANNEL'] ?? '') ?>" required>
+                            <p class="input-description">Your Twitch channel name where the bot will operate. This should be your main Twitch account name.</p>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="save-btn">💾 Save Connection Settings</button>
+                        <button type="button" onclick="hideModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <div class="commands-section">
@@ -227,7 +366,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         <div class="log-section">
             <h2>
                 📜 Bot Output
-                <button type="submit" name="action" value="refresh" class="refresh-btn" form="bot-form" onclick="updateLogs(); return false;">🔄 Refresh</button>
+                <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" onclick="updateLogs(); return false;">🔄 Refresh</button>
             </h2>
             <div class="log-box">
                 <?php
@@ -241,5 +380,27 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             </div>
         </div>
     </div>
+
+    <script>
+        // Add modal functionality
+        function showModal() {
+            if (document.querySelector('.settings-button').disabled) {
+                showToast('Stop the bot before changing connection settings', 'warning');
+                return;
+            }
+            document.getElementById('settingsModal').classList.add('show');
+        }
+
+        function hideModal() {
+            document.getElementById('settingsModal').classList.remove('show');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('settingsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideModal();
+            }
+        });
+    </script>
 </body>
 </html>
