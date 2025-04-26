@@ -24,14 +24,18 @@ $OAUTH_TOKEN = "oauth:" . str_replace("oauth:", "", getenv("TBOT_OAUTH")); // Re
 $CHANNEL = getenv("TBOT_CHANNEL");
 $COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?: "30"); // Default to 30 if not set
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
+$SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
+$FOLLOWER_ONLY = (getenv("TBOT_FOLLOWER_ONLY") ?: "0") === "1"; // Default to false if not set
 
 // Store last command time and invalid command tracking
 $last_command_time = 0;
 $invalid_command_count = 0;
 $last_invalid_time = 0;
 
-// Store channel moderators
+// Store channel moderators and subscribers
 $moderators = [];
+$subscribers = [];
+$followers = [];
 $channel_owner = strtolower($CHANNEL);
 
 echo date(DATE_RFC2822) . PHP_EOL;
@@ -42,6 +46,8 @@ OAUTH_TOKEN: $OAUTH_TOKEN
 CHANNEL: $CHANNEL
 COOLDOWN: $COOLDOWN seconds
 MODS ONLY: " . ($MODS_ONLY ? "Yes" : "No") . "
+SUBS ONLY: " . ($SUBS_ONLY ? "Yes" : "No") . "
+FOLLOWER ONLY: " . ($FOLLOWER_ONLY ? "Yes" : "No") . "
 " . PHP_EOL;
 
 $child_pid = null;
@@ -102,7 +108,7 @@ while (true) {
 
 function runBot($server, $port, $username, $oauth, $channel)
 {
-    global $moderators;
+    global $moderators, $subscribers, $followers;
     echo "🔌 Connecting to Twitch Chat...\n";
     
     $socket = fsockopen($server, $port, $errno, $errstr, 30);
@@ -175,14 +181,44 @@ function runBot($server, $port, $username, $oauth, $channel)
 }
 
 function canUserUseCommands($user) {
-    global $MODS_ONLY, $moderators, $channel_owner;
+    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY;
+    global $moderators, $subscribers, $followers, $channel_owner;
     
-    if (!$MODS_ONLY) {
+    $user = strtolower($user);
+    
+    // STEP 1: Channel owner and mods always have permission, regardless of other settings
+    if ($user === $channel_owner || in_array($user, $moderators)) {
+        error_log("✅ User $user is channel owner/mod - Command allowed");
         return true;
     }
     
-    $user = strtolower($user);
-    return $user === $channel_owner || in_array($user, $moderators);
+    // STEP 2: If Mods Only mode is on, only mods can use commands (we already checked mods above)
+    if ($MODS_ONLY) {
+        error_log("❌ User $user blocked - Mods Only mode is on");
+        return false;
+    }
+    
+    // STEP 3: If Subscribers Only mode is on, check if user is a subscriber
+    if ($SUBS_ONLY) {
+        if (!in_array($user, $subscribers)) {
+            error_log("❌ User $user blocked - Subs Only mode is on and user is not a subscriber");
+            return false;
+        }
+        error_log("✅ User $user is a subscriber - Proceeding with checks");
+    }
+    
+    // STEP 4: If Follower Only mode is on, check if user is a follower
+    if ($FOLLOWER_ONLY) {
+        if (!isset($followers[$user])) {
+            error_log("❌ User $user blocked - Follower Only mode is on and user is not a follower");
+            return false;
+        }
+        error_log("✅ User $user is a follower - Proceeding with checks");
+    }
+    
+    // STEP 5: If we got here, all permission checks passed
+    error_log("✅ User $user passed all permission checks - Command allowed");
+    return true;
 }
 
 function executeCommand($socket, $channel, $user, $task, $type, $freeText)
@@ -306,4 +342,57 @@ function handleInvalidCommand($socket, $channel, $errorMessage) {
 function sendMessage($socket, $channel, $message)
 {
     fwrite($socket, "PRIVMSG #$channel :$message\r\n");
+}
+
+// Example function to demonstrate permission checks
+function testPermissions() {
+    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY;
+    global $moderators, $subscribers, $followers, $channel_owner;
+    
+    // Test setup
+    $channel_owner = "channel_owner";
+    $moderators = ["mod1", "mod2"];
+    $subscribers = ["sub1", "sub2", "both_sub_and_follower"];
+    $followers = ["follower1", "follower2", "both_sub_and_follower" => time()];
+    
+    echo "\n=== Permission Test Cases ===\n";
+    
+    // Test Case 1: All modes OFF
+    $MODS_ONLY = false; $SUBS_ONLY = false; $FOLLOWER_ONLY = false;
+    echo "\nTest Case 1 - All modes OFF:\n";
+    echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
+    
+    // Test Case 2: Mods Only mode ON
+    $MODS_ONLY = true; $SUBS_ONLY = false; $FOLLOWER_ONLY = false;
+    echo "\nTest Case 2 - Mods Only mode ON:\n";
+    echo "Mod: " . (canUserUseCommands("mod1") ? "✅" : "❌") . "\n";
+    echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
+    
+    // Test Case 3: Subs Only mode ON
+    $MODS_ONLY = false; $SUBS_ONLY = true; $FOLLOWER_ONLY = false;
+    echo "\nTest Case 3 - Subs Only mode ON:\n";
+    echo "Subscriber: " . (canUserUseCommands("sub1") ? "✅" : "❌") . "\n";
+    echo "Non-subscriber: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
+    
+    // Test Case 4: Follower Only mode ON
+    $MODS_ONLY = false; $SUBS_ONLY = false; $FOLLOWER_ONLY = true;
+    echo "\nTest Case 4 - Follower Only mode ON:\n";
+    echo "Follower: " . (canUserUseCommands("follower1") ? "✅" : "❌") . "\n";
+    echo "Non-follower: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
+    
+    // Test Case 5: Subs AND Follower mode ON
+    $MODS_ONLY = false; $SUBS_ONLY = true; $FOLLOWER_ONLY = true;
+    echo "\nTest Case 5 - Subs AND Follower mode ON:\n";
+    echo "Both sub and follower: " . (canUserUseCommands("both_sub_and_follower") ? "✅" : "❌") . "\n";
+    echo "Only subscriber: " . (canUserUseCommands("sub1") ? "✅" : "❌") . "\n";
+    echo "Only follower: " . (canUserUseCommands("follower1") ? "✅" : "❌") . "\n";
+    
+    // Test Case 6: All modes ON
+    $MODS_ONLY = true; $SUBS_ONLY = true; $FOLLOWER_ONLY = true;
+    echo "\nTest Case 6 - All modes ON:\n";
+    echo "Mod: " . (canUserUseCommands("mod1") ? "✅" : "❌") . "\n";
+    echo "Channel owner: " . (canUserUseCommands("channel_owner") ? "✅" : "❌") . "\n";
+    echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
+    
+    echo "\n=== End of Test Cases ===\n";
 }

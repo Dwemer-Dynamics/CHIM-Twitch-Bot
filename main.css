@@ -612,4 +612,32 @@ input:checked + .toggle-slider:before {
 
 .modal button:disabled:hover {
     filter: none;
+}
+
+.permissions-section {
+    background-color: var(--twitch-darker);
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.permissions-section h3 {
+    color: var(--twitch-light);
+    margin: 0 0 15px 0;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background-color: var(--twitch-dark);
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.toggle-container:last-child {
+    margin-bottom: 0;
 } 

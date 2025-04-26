@@ -169,31 +169,25 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         });
 
         function updateControlsState(isRunning) {
-            const cooldownInput = document.getElementById('cooldown');
-            const modsOnlyInput = document.getElementById('mods_only');
+            const inputs = document.querySelectorAll('#bot-controls-form input');
             const saveButton = document.querySelector('.save-controls-btn');
             const settingsGroup = document.querySelector('.settings-group');
             const configureButton = document.querySelector('.settings-button');
-            const connectionInputs = document.querySelectorAll('#connection-form input');
-            const connectionButtons = document.querySelectorAll('#connection-form button');
 
-            // Disable bot controls
-            cooldownInput.disabled = isRunning;
-            modsOnlyInput.disabled = isRunning;
+            inputs.forEach(input => {
+                if (input.id === 'follow_time') {
+                    input.disabled = isRunning || !document.getElementById('follower_only').checked;
+                } else {
+                    input.disabled = isRunning;
+                }
+            });
+            
             saveButton.disabled = isRunning;
             configureButton.disabled = isRunning;
-            
-            // Disable connection settings
-            connectionInputs.forEach(input => input.disabled = isRunning);
-            connectionButtons.forEach(button => button.disabled = isRunning);
             
             if (isRunning) {
                 settingsGroup.classList.add('disabled');
                 saveButton.innerHTML = '⚠️ Stop bot to apply new settings';
-                if (document.getElementById('settingsModal').classList.contains('show')) {
-                    hideModal();
-                    showToast('Stop the bot before changing connection settings', 'warning');
-                }
             } else {
                 settingsGroup.classList.remove('disabled');
                 saveButton.innerHTML = '💾 Save Bot Controls';
@@ -208,6 +202,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
             const cooldown = Math.max(0, parseInt(document.getElementById('cooldown').value) || 30);
             const modsOnly = document.getElementById('mods_only').checked;
+            const subsOnly = document.getElementById('subs_only').checked;
+            const followerOnly = document.getElementById('follower_only').checked;
 
             fetch('update_bot_settings.php', {
                 method: 'POST',
@@ -216,7 +212,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 },
                 body: JSON.stringify({
                     cooldown: cooldown,
-                    modsOnly: modsOnly
+                    modsOnly: modsOnly,
+                    subsOnly: subsOnly,
+                    followerOnly: followerOnly
                 })
             })
             .then(response => response.json())
@@ -225,6 +223,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     showToast('Bot controls saved successfully', 'success');
                     document.getElementById('cooldown').value = data.settings.cooldown;
                     document.getElementById('mods_only').checked = data.settings.modsOnly;
+                    document.getElementById('subs_only').checked = data.settings.subsOnly;
+                    document.getElementById('follower_only').checked = data.settings.followerOnly;
                 } else {
                     showToast('Failed to save bot controls: ' + data.error, 'error');
                     loadSettings();
@@ -244,10 +244,14 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         // Set default values if not present
                         document.getElementById('cooldown').value = data.settings.cooldown || 30;
                         document.getElementById('mods_only').checked = data.settings.modsOnly || false;
+                        document.getElementById('subs_only').checked = data.settings.subsOnly || false;
+                        document.getElementById('follower_only').checked = data.settings.followerOnly || false;
                     } else {
                         // Set default values if no settings found
                         document.getElementById('cooldown').value = 30;
                         document.getElementById('mods_only').checked = false;
+                        document.getElementById('subs_only').checked = false;
+                        document.getElementById('follower_only').checked = false;
                     }
                 })
                 .catch(error => {
@@ -255,6 +259,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     // Set default values on error
                     document.getElementById('cooldown').value = 30;
                     document.getElementById('mods_only').checked = false;
+                    document.getElementById('subs_only').checked = false;
+                    document.getElementById('follower_only').checked = false;
                 });
         }
 
@@ -282,14 +288,37 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                             value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" required>
                         <label for="cooldown">Command Cooldown (seconds)</label>
                     </div>
-                    <div class="toggle-container">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="mods_only" name="tbot_mods_only" 
-                                <?= ($env_vars['TBOT_MODS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Mods Only Mode</span>
+                    
+                    <div class="permissions-section">
+                        <h3>Permission Settings</h3>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="mods_only" name="tbot_mods_only" 
+                                    <?= ($env_vars['TBOT_MODS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">Mods Only Mode</span>
+                        </div>
+
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="subs_only" name="tbot_subs_only" 
+                                    <?= ($env_vars['TBOT_SUBS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">Subscribers Only Mode</span>
+                        </div>
+
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="follower_only" name="tbot_follower_only" 
+                                    <?= ($env_vars['TBOT_FOLLOWER_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">Follower Only Mode</span>
+                        </div>
                     </div>
+
                     <button type="button" onclick="saveBotControls()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
                         <?= $is_running ? '⚠️ Stop bot to apply new settings' : '💾 Save Bot Controls' ?>
                     </button>
