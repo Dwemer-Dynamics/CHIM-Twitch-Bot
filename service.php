@@ -26,6 +26,8 @@ $COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?: "30"); // Default to 30 if not set
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 $SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
 $FOLLOWER_ONLY = (getenv("TBOT_FOLLOWER_ONLY") ?: "0") === "1"; // Default to false if not set
+$WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
+$BLACKLIST_ENABLED = (getenv("TBOT_BLACKLIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 
 // Store last command time and invalid command tracking
 $last_command_time = 0;
@@ -37,6 +39,20 @@ $moderators = [];
 $subscribers = [];
 $followers = [];
 $channel_owner = strtolower($CHANNEL);
+
+// Add these global variables at the top with other globals
+$whitelist = [];
+$blacklist = [];
+
+// Add this after loading other settings
+$lists_file = __DIR__ . "/user_lists.json";
+if (file_exists($lists_file)) {
+    $lists = json_decode(file_get_contents($lists_file), true);
+    if (is_array($lists)) {
+        $whitelist = $lists['whitelist'] ?? [];
+        $blacklist = $lists['blacklist'] ?? [];
+    }
+}
 
 echo date(DATE_RFC2822) . PHP_EOL;
 echo "Using config values:
@@ -181,24 +197,37 @@ function runBot($server, $port, $username, $oauth, $channel)
 }
 
 function canUserUseCommands($user) {
-    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY;
+    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED;
     global $moderators, $subscribers, $followers, $channel_owner;
+    global $whitelist, $blacklist;
     
     $user = strtolower($user);
     
-    // STEP 1: Channel owner and mods always have permission, regardless of other settings
+    // STEP 1: Check blacklist (overrides everything except channel owner) if enabled
+    if ($BLACKLIST_ENABLED && in_array($user, $blacklist) && $user !== $channel_owner) {
+        error_log("❌ User $user blocked - User is blacklisted");
+        return false;
+    }
+    
+    // STEP 2: Channel owner and mods always have permission (except if blacklisted)
     if ($user === $channel_owner || in_array($user, $moderators)) {
         error_log("✅ User $user is channel owner/mod - Command allowed");
         return true;
     }
     
-    // STEP 2: If Mods Only mode is on, only mods can use commands (we already checked mods above)
+    // STEP 3: Check whitelist (overrides other restrictions except blacklist) if enabled
+    if ($WHITELIST_ENABLED && in_array($user, $whitelist)) {
+        error_log("✅ User $user is whitelisted - Command allowed");
+        return true;
+    }
+    
+    // STEP 4: If Mods Only mode is on, only mods can use commands (we already checked mods above)
     if ($MODS_ONLY) {
         error_log("❌ User $user blocked - Mods Only mode is on");
         return false;
     }
     
-    // STEP 3: If Subscribers Only mode is on, check if user is a subscriber
+    // STEP 5: If Subscribers Only mode is on, check if user is a subscriber
     if ($SUBS_ONLY) {
         if (!in_array($user, $subscribers)) {
             error_log("❌ User $user blocked - Subs Only mode is on and user is not a subscriber");
@@ -207,7 +236,7 @@ function canUserUseCommands($user) {
         error_log("✅ User $user is a subscriber - Proceeding with checks");
     }
     
-    // STEP 4: If Follower Only mode is on, check if user is a follower
+    // STEP 6: If Follower Only mode is on, check if user is a follower
     if ($FOLLOWER_ONLY) {
         if (!isset($followers[$user])) {
             error_log("❌ User $user blocked - Follower Only mode is on and user is not a follower");
@@ -216,7 +245,7 @@ function canUserUseCommands($user) {
         error_log("✅ User $user is a follower - Proceeding with checks");
     }
     
-    // STEP 5: If we got here, all permission checks passed
+    // STEP 7: If we got here, all permission checks passed
     error_log("✅ User $user passed all permission checks - Command allowed");
     return true;
 }
@@ -393,6 +422,45 @@ function testPermissions() {
     echo "Mod: " . (canUserUseCommands("mod1") ? "✅" : "❌") . "\n";
     echo "Channel owner: " . (canUserUseCommands("channel_owner") ? "✅" : "❌") . "\n";
     echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
+    
+    echo "\n=== End of Test Cases ===\n";
+}
+
+// Add this function to demonstrate all permission combinations
+function testPermissionsWithLists() {
+    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY;
+    global $moderators, $subscribers, $followers, $channel_owner;
+    global $whitelist, $blacklist;
+    
+    // Test setup
+    $channel_owner = "channel_owner";
+    $moderators = ["mod1", "mod2"];
+    $subscribers = ["sub1", "sub2", "both_sub_and_follower"];
+    $followers = ["follower1", "follower2", "both_sub_and_follower" => time()];
+    $whitelist = ["whitelisted_user"];
+    $blacklist = ["blacklisted_user", "blacklisted_mod"];
+    
+    echo "\n=== Permission Test Cases with Whitelist/Blacklist ===\n";
+    
+    // Test Case 1: Blacklist overrides everything except channel owner
+    echo "\nTest Case 1 - Blacklist Override:\n";
+    echo "Blacklisted regular user: " . (canUserUseCommands("blacklisted_user") ? "✅" : "❌") . "\n";
+    echo "Blacklisted mod: " . (canUserUseCommands("blacklisted_mod") ? "✅" : "❌") . "\n";
+    echo "Blacklisted channel owner: " . (canUserUseCommands($channel_owner) ? "✅" : "❌") . "\n";
+    
+    // Test Case 2: Whitelist bypasses restrictions
+    $MODS_ONLY = true;
+    echo "\nTest Case 2 - Whitelist Bypass:\n";
+    echo "Whitelisted user (Mods Only ON): " . (canUserUseCommands("whitelisted_user") ? "✅" : "❌") . "\n";
+    
+    // Test Case 3: Complex permission scenario
+    $MODS_ONLY = false;
+    $SUBS_ONLY = true;
+    $FOLLOWER_ONLY = true;
+    echo "\nTest Case 3 - Complex Scenario (Subs + Followers Only):\n";
+    echo "Whitelisted non-sub non-follower: " . (canUserUseCommands("whitelisted_user") ? "✅" : "❌") . "\n";
+    echo "Non-whitelisted sub and follower: " . (canUserUseCommands("both_sub_and_follower") ? "✅" : "❌") . "\n";
+    echo "Blacklisted sub and follower: " . (canUserUseCommands("blacklisted_user") ? "✅" : "❌") . "\n";
     
     echo "\n=== End of Test Cases ===\n";
 }

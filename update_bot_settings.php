@@ -9,6 +9,8 @@ $cooldown = isset($data['cooldown']) ? intval($data['cooldown']) : 30;
 $modsOnly = isset($data['modsOnly']) ? $data['modsOnly'] : false;
 $subsOnly = isset($data['subsOnly']) ? $data['subsOnly'] : false;
 $followerOnly = isset($data['followerOnly']) ? $data['followerOnly'] : false;
+$whitelistEnabled = isset($data['whitelistEnabled']) ? $data['whitelistEnabled'] : false;
+$blacklistEnabled = isset($data['blacklistEnabled']) ? $data['blacklistEnabled'] : false;
 
 // Ensure cooldown is at least 0
 $cooldown = max(0, $cooldown);
@@ -22,6 +24,8 @@ $env_vars['TBOT_COOLDOWN'] = strval($cooldown);
 $env_vars['TBOT_MODS_ONLY'] = $modsOnly ? "1" : "0";
 $env_vars['TBOT_SUBS_ONLY'] = $subsOnly ? "1" : "0";
 $env_vars['TBOT_FOLLOWER_ONLY'] = $followerOnly ? "1" : "0";
+$env_vars['TBOT_WHITELIST_ENABLED'] = $whitelistEnabled ? "1" : "0";
+$env_vars['TBOT_BLACKLIST_ENABLED'] = $blacklistEnabled ? "1" : "0";
 
 // Save env vars
 $success = file_put_contents($env_file, json_encode($env_vars));
@@ -34,7 +38,9 @@ if ($success) {
             'cooldown' => intval($env_vars['TBOT_COOLDOWN']),
             'modsOnly' => $env_vars['TBOT_MODS_ONLY'] === "1",
             'subsOnly' => $env_vars['TBOT_SUBS_ONLY'] === "1",
-            'followerOnly' => $env_vars['TBOT_FOLLOWER_ONLY'] === "1"
+            'followerOnly' => $env_vars['TBOT_FOLLOWER_ONLY'] === "1",
+            'whitelistEnabled' => $env_vars['TBOT_WHITELIST_ENABLED'] === "1",
+            'blacklistEnabled' => $env_vars['TBOT_BLACKLIST_ENABLED'] === "1"
         ]
     ]);
 } else {

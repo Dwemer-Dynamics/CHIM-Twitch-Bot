@@ -204,6 +204,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const modsOnly = document.getElementById('mods_only').checked;
             const subsOnly = document.getElementById('subs_only').checked;
             const followerOnly = document.getElementById('follower_only').checked;
+            const whitelistEnabled = document.getElementById('whitelist_enabled').checked;
+            const blacklistEnabled = document.getElementById('blacklist_enabled').checked;
 
             fetch('update_bot_settings.php', {
                 method: 'POST',
@@ -214,7 +216,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     cooldown: cooldown,
                     modsOnly: modsOnly,
                     subsOnly: subsOnly,
-                    followerOnly: followerOnly
+                    followerOnly: followerOnly,
+                    whitelistEnabled: whitelistEnabled,
+                    blacklistEnabled: blacklistEnabled
                 })
             })
             .then(response => response.json())
@@ -225,6 +229,12 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('mods_only').checked = data.settings.modsOnly;
                     document.getElementById('subs_only').checked = data.settings.subsOnly;
                     document.getElementById('follower_only').checked = data.settings.followerOnly;
+                    document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled;
+                    document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled;
+                    
+                    // Update button states
+                    document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
+                    document.getElementById('blacklist_btn').disabled = !data.settings.blacklistEnabled;
                 } else {
                     showToast('Failed to save bot controls: ' + data.error, 'error');
                     loadSettings();
@@ -241,17 +251,24 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.settings) {
-                        // Set default values if not present
                         document.getElementById('cooldown').value = data.settings.cooldown || 30;
                         document.getElementById('mods_only').checked = data.settings.modsOnly || false;
                         document.getElementById('subs_only').checked = data.settings.subsOnly || false;
                         document.getElementById('follower_only').checked = data.settings.followerOnly || false;
+                        document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled || false;
+                        document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled || false;
+                        
+                        // Update button states
+                        document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
+                        document.getElementById('blacklist_btn').disabled = !data.settings.blacklistEnabled;
                     } else {
                         // Set default values if no settings found
                         document.getElementById('cooldown').value = 30;
                         document.getElementById('mods_only').checked = false;
                         document.getElementById('subs_only').checked = false;
                         document.getElementById('follower_only').checked = false;
+                        document.getElementById('whitelist_enabled').checked = false;
+                        document.getElementById('blacklist_enabled').checked = false;
                     }
                 })
                 .catch(error => {
@@ -261,6 +278,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('mods_only').checked = false;
                     document.getElementById('subs_only').checked = false;
                     document.getElementById('follower_only').checked = false;
+                    document.getElementById('whitelist_enabled').checked = false;
+                    document.getElementById('blacklist_enabled').checked = false;
                 });
         }
 
@@ -316,6 +335,39 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                 <span class="toggle-slider"></span>
                             </label>
                             <span class="toggle-label">Follower Only Mode</span>
+                        </div>
+
+                        <!-- New User Lists Management Section -->
+                        <div class="user-lists-section">
+                            <h3>User Lists Management</h3>
+                            
+                            <div class="list-control">
+                                <div class="toggle-container">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="whitelist_enabled" name="tbot_whitelist_enabled" 
+                                            <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="toggle-label">Enable Allowed Users List</span>
+                                    <button type="button" class="list-action-btn" onclick="showListModal('whitelist')" 
+                                            id="whitelist_btn" <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
+                                        ✅ Manage Allowed Users
+                                    </button>
+                                </div>
+
+                                <div class="toggle-container">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="blacklist_enabled" name="tbot_blacklist_enabled" 
+                                            <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="toggle-label">Enable Blocked Users List</span>
+                                    <button type="button" class="list-action-btn danger" onclick="showListModal('blacklist')" 
+                                            id="blacklist_btn" <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
+                                        ❌ Manage Blocked Users
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -430,6 +482,171 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 hideModal();
             }
         });
+    </script>
+
+    <!-- User List Management Modal -->
+    <div class="modal-overlay" id="listModal">
+        <div class="modal">
+            <button class="modal-close" onclick="hideListModal()">×</button>
+            <h2 id="listModalTitle">Manage List</h2>
+            
+            <div class="list-management">
+                <div class="bulk-input-container">
+                    <label for="bulkUserInput">Add Users (one per line or comma-separated)</label>
+                    <textarea id="bulkUserInput" placeholder="user1&#10;user2&#10;user3&#10;or: user1, user2, user3"></textarea>
+                    <button type="button" onclick="addUsers()" class="bulk-action-btn">Add Users</button>
+                </div>
+                
+                <div class="current-list-container">
+                    <h4>Current Users in List</h4>
+                    <div class="search-container">
+                        <input type="text" id="userSearch" placeholder="Search users..." onkeyup="filterUsers()">
+                        <button type="button" onclick="removeSelected()" class="remove-btn">Remove Selected</button>
+                    </div>
+                    <div class="user-list" id="currentUsers">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" onclick="saveList()" class="save-btn">Save Changes</button>
+                <button type="button" onclick="hideListModal()" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add this before the closing </body> tag -->
+    <script>
+    let currentListType = null;
+    let currentListData = {
+        whitelist: [],
+        blacklist: []
+    };
+
+    // Load initial list data
+    document.addEventListener('DOMContentLoaded', () => {
+        loadListData();
+    });
+
+    function loadListData() {
+        fetch('get_user_lists.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentListData = data.lists;
+                }
+            })
+            .catch(error => showToast('Error loading user lists: ' + error, 'error'));
+    }
+
+    function showListModal(listType) {
+        if (document.querySelector('.settings-group').classList.contains('disabled')) {
+            showToast('Stop the bot before managing user lists', 'warning');
+            return;
+        }
+
+        currentListType = listType;
+        const modal = document.getElementById('listModal');
+        const title = document.getElementById('listModalTitle');
+        
+        title.textContent = listType === 'whitelist' ? 'Manage Allowed Users' : 'Manage Blocked Users';
+        modal.classList.add('show');
+        
+        // Clear and populate the current users list
+        const currentUsers = document.getElementById('currentUsers');
+        currentUsers.innerHTML = '';
+        
+        currentListData[listType].forEach(user => {
+            const userElement = document.createElement('div');
+            userElement.className = 'user-item';
+            userElement.innerHTML = `
+                <input type="checkbox" id="user_${user}" value="${user}">
+                <label for="user_${user}">${user}</label>
+            `;
+            currentUsers.appendChild(userElement);
+        });
+    }
+
+    function hideListModal() {
+        document.getElementById('listModal').classList.remove('show');
+        document.getElementById('bulkUserInput').value = '';
+        currentListType = null;
+    }
+
+    function addUsers() {
+        const input = document.getElementById('bulkUserInput').value;
+        const users = input.split(/[\n,]/).map(user => user.trim().toLowerCase()).filter(user => user);
+        
+        // Add new users to the current list
+        users.forEach(user => {
+            if (!currentListData[currentListType].includes(user)) {
+                currentListData[currentListType].push(user);
+            }
+        });
+        
+        // Refresh the display
+        showListModal(currentListType);
+        document.getElementById('bulkUserInput').value = '';
+    }
+
+    function filterUsers() {
+        const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+        const userElements = document.querySelectorAll('.user-item');
+        
+        userElements.forEach(element => {
+            const username = element.querySelector('label').textContent.toLowerCase();
+            element.style.display = username.includes(searchTerm) ? '' : 'none';
+        });
+    }
+
+    function removeSelected() {
+        const selectedUsers = Array.from(document.querySelectorAll('.user-item input:checked'))
+            .map(checkbox => checkbox.value);
+        
+        currentListData[currentListType] = currentListData[currentListType]
+            .filter(user => !selectedUsers.includes(user));
+        
+        showListModal(currentListType);
+    }
+
+    function saveList() {
+        fetch('update_user_lists.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                listType: currentListType,
+                users: currentListData[currentListType]
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`${currentListType.charAt(0).toUpperCase() + currentListType.slice(1)} updated successfully`, 'success');
+                hideListModal();
+            } else {
+                showToast('Failed to update list: ' + data.error, 'error');
+            }
+        })
+        .catch(error => showToast('Error saving list: ' + error, 'error'));
+    }
+
+    // Add these to your existing event listeners
+    document.getElementById('whitelist_enabled').addEventListener('change', function() {
+        document.getElementById('whitelist_btn').disabled = !this.checked;
+        if (!this.checked) {
+            showToast('Allowed Users List disabled', 'info');
+        }
+    });
+
+    document.getElementById('blacklist_enabled').addEventListener('change', function() {
+        document.getElementById('blacklist_btn').disabled = !this.checked;
+        if (!this.checked) {
+            showToast('Blocked Users List disabled', 'info');
+        }
+    });
     </script>
 </body>
 </html>

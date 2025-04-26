@@ -277,6 +277,7 @@ a:hover {
     display: inline-block;
     width: 50px;
     height: 24px;
+    flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -321,10 +322,11 @@ input:checked + .toggle-slider:before {
 }
 
 .toggle-label {
-    font-size: 0.9em;
     color: var(--twitch-light);
+    font-size: 0.9em;
     font-weight: 500;
-    user-select: none;
+    margin: 0;
+    white-space: nowrap;
 }
 
 .log-section h2 {
@@ -640,4 +642,203 @@ input:checked + .toggle-slider:before {
 
 .toggle-container:last-child {
     margin-bottom: 0;
+}
+
+/* User Lists Management Styles */
+.user-lists-section {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--twitch-darker);
+    border-radius: 6px;
+}
+
+.list-control {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.list-control .toggle-container {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background-color: var(--twitch-dark);
+    border-radius: 6px;
+}
+
+.list-action-btn {
+    background-color: var(--twitch-purple);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 180px;
+}
+
+.list-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
+
+.list-action-btn.danger {
+    background-color: #ff2e2e;
+}
+
+.list-action-btn:not(:disabled):hover {
+    filter: brightness(1.1);
+}
+
+/* List Management Modal Styles */
+.list-management {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.bulk-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bulk-input-container textarea {
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    background-color: var(--twitch-dark);
+    border: 1px solid var(--twitch-gray);
+    border-radius: 4px;
+    color: var(--twitch-light);
+    font-family: 'Inter', sans-serif;
+    resize: vertical;
+}
+
+.bulk-action-btn {
+    align-self: flex-start;
+    background-color: var(--twitch-purple);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.bulk-action-btn:hover {
+    filter: brightness(1.1);
+}
+
+.current-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.search-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-container input {
+    flex: 1;
+    padding: 8px;
+    background-color: var(--twitch-dark);
+    border: 1px solid var(--twitch-gray);
+    border-radius: 4px;
+    color: var(--twitch-light);
+}
+
+.remove-btn {
+    background-color: #ff2e2e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.remove-btn:hover {
+    background-color: #ff4444;
+}
+
+.user-list {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: var(--twitch-dark);
+    border: 1px solid var(--twitch-gray);
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.user-item:hover {
+    background-color: var(--twitch-darker);
+}
+
+.user-item input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+
+.user-item label {
+    flex: 1;
+    cursor: pointer;
+    user-select: none;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-actions button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.modal-actions .save-btn {
+    background-color: var(--twitch-purple);
+    color: white;
+    border: none;
+}
+
+.modal-actions .cancel-btn {
+    background-color: transparent;
+    border: 1px solid var(--twitch-gray);
+    color: var(--twitch-light);
+}
+
+.modal-actions .save-btn:hover {
+    filter: brightness(1.1);
+}
+
+.modal-actions .cancel-btn:hover {
+    border-color: var(--twitch-purple);
+    color: var(--twitch-purple);
 } 
