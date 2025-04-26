@@ -91,44 +91,59 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 <body>
     <h1><img src="images/ClavicusVileMask.png" alt="Clavicus Vile Mask" class="title-icon"> CHIM Twitch Bot Control Panel</h1>
 
-    <div class="commands-section">
-        <h2>🎯 Available Commands</h2>
-        <div class="command-card">
-            <h3>Instruction</h3>
-            <p class="command-format">Rolemaster:instruction: (Enter request here)</p>
-            <p class="command-description">Will prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</p>
-            <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
+    <div class="page-grid">
+        <div class="connection-settings">
+            <form method="post">
+                <h2>⚙️ Twitch Connection Settings</h2>
+                <div class="input-group">
+                    <div class="input-container">
+                        <label for="username">Bot Username</label>
+                        <input type="text" id="username" name="tbot_username" placeholder="Username" value="<?= htmlspecialchars($env_vars['TBOT_USERNAME'] ?? '') ?>" required>
+                    </div>
+                    <div class="input-container">
+                        <label for="oauth">OAuth Token</label>
+                        <input type="password" id="oauth" name="tbot_oauth" placeholder="OAUTH TOKEN" value="<?= htmlspecialchars($env_vars['TBOT_OAUTH'] ?? '') ?>" required>
+                        <a href="https://twitchtokengenerator.com/" target="_blank">Obtain OAuth Token</a>
+                    </div>
+                    <div class="input-container">
+                        <label for="channel">Channel Name</label>
+                        <input type="text" id="channel" name="tbot_channel" placeholder="Channel Name" value="<?= htmlspecialchars($env_vars['TBOT_CHANNEL'] ?? '') ?>" required>
+                    </div>
+                </div>
+                <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
+                <div class="button-group">
+                    <button type="submit" name="action" value="start">▶️ Start Bot</button>
+                    <button type="submit" name="action" value="stop">⏹ Stop Bot</button>
+                    <button type="submit" name="action" value="refresh">🔄 Refresh</button>
+                </div>
+            </form>
         </div>
-        <div class="command-card">
-            <h3>Suggestion</h3>
-            <p class="command-format">Rolemaster:suggestion:  (Enter request here)</p>
-            <p class="command-description">Will prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</p>
-            <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
+
+        <div class="commands-section">
+            <h2>🎯 Available Commands</h2>
+            <div class="command-card">
+                <h3>Rolemaster:instruction:</h3>
+                <p class="command-description"><i>Will <b>[immediately]</b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
+            </div>
+            <div class="command-card">
+                <h3>Rolemaster:suggestion:</h3>
+                <p class="command-description"><i>Will <b>[eventually during the next pause in AI conversation] </b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
+            </div>
+            <div class="command-card">
+                <h3>Rolemaster:impersonation:</h3>
+                <p class="command-description"><i>The player character will repeat what is entered.</i></p>
+                <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
+            </div>
         </div>
-        <div class="command-card">
-            <h3>Impersonation</h3>
-            <p class="command-format">Rolemaster:impersonation:  (Enter request here)</p>
-            <p class="command-description">Player will say that sentence</p>
-            <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
+
+        <div class="log-section">
+            <h2>📜 Bot Output</h2>
+            <div class="log-box">
+                <?= !empty($log_content) ? implode("<br>", $log_content) : "No logs yet." ?>
+            </div>
         </div>
-    </div>
-
-    <form method="post">
-        <h2>⚙️ Twitch Connection Settings</h2>
-        <input type="text" name="tbot_username" placeholder="Username" value="<?= htmlspecialchars($env_vars['TBOT_USERNAME'] ?? '') ?>" required> ::
-        <input type="text" name="tbot_oauth" placeholder="OAUTH TOKEN " value="<?= htmlspecialchars($env_vars['TBOT_OAUTH'] ?? '') ?>" required> <a href="https://twitchtokengenerator.com/" target="_blank">Obtain</a> :: 
-        <input type="text" name="tbot_channel" placeholder="TBOT_CHANNEL" value="<?= htmlspecialchars($env_vars['TBOT_CHANNEL'] ?? '') ?>" required><br>
-
-        <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
-
-        <button type="submit" name="action" value="start">▶️ Start Bot</button>
-        <button type="submit" name="action" value="stop">⏹ Stop Bot</button>
-        <button type="submit" name="action" value="refresh">🔄 Refresh</button>
-    </form>
-
-    <h2>📜 Bot Output (Last 25 Lines)</h2>
-    <div class="log-box">
-        <?= !empty($log_content) ? implode("<br>", $log_content) : "No logs yet." ?>
     </div>
 </body>
 </html>
