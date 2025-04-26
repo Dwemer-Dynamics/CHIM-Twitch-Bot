@@ -12,11 +12,16 @@ $USERNAME = getenv("TBOT_USERNAME");
 $OAUTH_TOKEN = "oauth:" . getenv("TBOT_OAUTH");
 $CHANNEL = getenv("TBOT_CHANNEL");
 $COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?? "30");
+$MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?? "0") === "1";
 
 // Store last command time and invalid command tracking
 $last_command_time = 0;
 $invalid_command_count = 0;
 $last_invalid_time = 0;
+
+// Store channel moderators
+$moderators = [];
+$channel_owner = strtolower($CHANNEL);
 
 echo date(DATE_RFC2822) . PHP_EOL;
 echo "Using config values:
@@ -25,6 +30,7 @@ USERNAME: $USERNAME
 OAUTH_TOKEN: $OAUTH_TOKEN
 CHANNEL: $CHANNEL
 COOLDOWN: $COOLDOWN seconds
+MODS ONLY: " . ($MODS_ONLY ? "Yes" : "No") . "
 " . PHP_EOL;
 
 $child_pid = null;
@@ -85,6 +91,7 @@ while (true) {
 
 function runBot($server, $port, $username, $oauth, $channel)
 {
+    global $moderators;
     echo "🔌 Connecting to Twitch Chat...\n";
     
     $socket = fsockopen($server, $port, $errno, $errstr, 30);
@@ -101,48 +108,70 @@ function runBot($server, $port, $username, $oauth, $channel)
     fwrite($socket, "PASS $oauth\r\n");
     fwrite($socket, "NICK $username\r\n");
     fwrite($socket, "JOIN #$channel\r\n");
+    // Request moderator capabilities
+    fwrite($socket, "CAP REQ :twitch.tv/commands twitch.tv/tags\r\n");
     
     echo "📡 Joined #$channel\n";
     
     $last_ping = time();
     
     while (!feof($socket)) {
-        // Check for incoming messages
         $data = fgets($socket, 512);
         
         if ($data) {
             echo "📩 Raw Message: $data";
             
-            // Respond to PING to avoid disconnection
+            // Handle PING
             if (strpos($data, "PING") === 0) {
                 fwrite($socket, "PONG :tmi.twitch.tv\r\n");
                 $last_ping = time();
                 continue;
             }
             
+            // Check for moderator messages
+            if (strpos($data, "USERSTATE") !== false && strpos($data, "mod=1") !== false) {
+                preg_match('/login=([^;]+)/', $data, $matches);
+                if (isset($matches[1])) {
+                    $moderators[] = strtolower($matches[1]);
+                }
+            }
+            
             // Parse chat messages
             if (preg_match('/:([^!]+)!.* PRIVMSG #\w+ :(.*)/', $data, $matches)) {
-                $user = $matches[1];
+                $user = strtolower($matches[1]);
                 $message = trim($matches[2]);
                 
                 echo "💬 $user: $message\n";
                 
                 if (strpos($message, "Rolemaster:") === 0) {
-                    parseRolemasterCommand($socket, $channel, $user, $message);
+                    if (canUserUseCommands($user)) {
+                        parseRolemasterCommand($socket, $channel, $user, $message);
+                    }
                 }
             }
         }
         
         // Check if we haven't received a PING in a while
-        if (time() - $last_ping > 300) { // 5 minutes
+        if (time() - $last_ping > 300) {
             echo "⚠️ No PING received for 5 minutes, reconnecting...\n";
             break;
         }
         
-        usleep(100000); // Sleep for 100ms to prevent CPU hogging
+        usleep(100000);
     }
     
     fclose($socket);
+}
+
+function canUserUseCommands($user) {
+    global $MODS_ONLY, $moderators, $channel_owner;
+    
+    if (!$MODS_ONLY) {
+        return true;
+    }
+    
+    $user = strtolower($user);
+    return $user === $channel_owner || in_array($user, $moderators);
 }
 
 function executeCommand($socket, $channel, $user, $task, $type, $freeText)

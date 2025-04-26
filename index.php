@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "TBOT_OAUTH" => trim($_POST['tbot_oauth']),
             "TBOT_CHANNEL" => trim($_POST['tbot_channel']),
             "TBOT_COOLDOWN" => trim($_POST['tbot_cooldown']),
+            "TBOT_MODS_ONLY" => isset($_POST['tbot_mods_only']) ? "1" : "0",
         ];
         file_put_contents($env_file, json_encode($env_vars));
     }
@@ -32,7 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "⚠️ Bot is already running!";
         } else {
             // Set environment variables and start the bot
-            $env_command = "TBOT_USERNAME='{$env_vars["TBOT_USERNAME"]}' TBOT_OAUTH='{$env_vars["TBOT_OAUTH"]}' TBOT_CHANNEL='{$env_vars["TBOT_CHANNEL"]}' TBOT_COOLDOWN='{$env_vars["TBOT_COOLDOWN"]}'";
+            $env_command = "TBOT_USERNAME='{$env_vars["TBOT_USERNAME"]}' "
+                        . "TBOT_OAUTH='{$env_vars["TBOT_OAUTH"]}' "
+                        . "TBOT_CHANNEL='{$env_vars["TBOT_CHANNEL"]}' "
+                        . "TBOT_COOLDOWN='{$env_vars["TBOT_COOLDOWN"]}' "
+                        . "TBOT_MODS_ONLY='{$env_vars["TBOT_MODS_ONLY"]}'";
             $command = "$env_command php $bot_script > $log_file 2>&1 & echo $!";
             error_log($command);
             $pid = shell_exec($command);
@@ -113,9 +118,16 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 </div>
                 
                 <div class="settings-group">
-                    <div class="input-container">
-                        <label for="cooldown">Command Cooldown (seconds)</label>
+                    <div class="cooldown-container">
                         <input type="number" id="cooldown" name="tbot_cooldown" placeholder="30" min="0" value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" required>
+                        <label for="cooldown">Command Cooldown (seconds)</label>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="tbot_mods_only" <?= ($env_vars['TBOT_MODS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Mods Only Mode</span>
                     </div>
                 </div>
 
