@@ -160,6 +160,12 @@ button:hover {
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 15px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.command-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .command-card:last-child {
@@ -874,13 +880,6 @@ input:checked + .toggle-slider:before {
     margin-top: 20px;
 }
 
-.command-card {
-    background-color: var(--twitch-dark);
-    border: 1px solid var(--twitch-gray);
-    border-radius: 8px;
-    padding: 15px;
-}
-
 .command-card h3 {
     color: var(--twitch-purple);
     margin: 0 0 10px 0;
@@ -900,4 +899,25 @@ input:checked + .toggle-slider:before {
     font-family: 'Consolas', monospace;
     margin-top: 10px;
     color: var(--twitch-gray);
+}
+
+.commands-section-title {
+    color: var(--twitch-light);
+    margin: 25px 0 15px 0;
+    font-size: 1.2em;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--twitch-gray);
+}
+
+.commands-section-title:first-child {
+    margin-top: 0;
+}
+
+.command-card.moderator-command {
+    border-left: 4px solid var(--twitch-purple);
+    background-color: rgba(145, 71, 255, 0.1);
+}
+
+.command-card.moderator-command h3 {
+    color: var(--twitch-purple);
 } 

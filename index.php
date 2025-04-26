@@ -462,6 +462,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             <button class="modal-close" onclick="hideCommandsModal()">×</button>
             <h2>📖 Available Commands</h2>
             <div class="commands-list">
+                <h3 class="commands-section-title">Rolemaster Commands</h3>
                 <div class="command-card">
                     <h3>Rolemaster:instruction:</h3>
                     <p class="command-description"><i>Will <b>[immediately]</b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
@@ -469,13 +470,25 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 </div>
                 <div class="command-card">
                     <h3>Rolemaster:suggestion:</h3>
-                    <p class="command-description"><i>Will <b>[eventually during the next pause in AI conversation] </b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                    <p class="command-description"><i>Will <b>[queue] </b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
                     <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
                     <h3>Rolemaster:impersonation:</h3>
                     <p class="command-description"><i>The player character will repeat what is entered.</i></p>
                     <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
+                </div>
+
+                <h3 class="commands-section-title">Moderation Commands</h3>
+                <div class="command-card moderator-command">
+                    <h3>Moderation:help:</h3>
+                    <p class="command-description"><i>Lists all available commands in the Twitch chat. <b>[Moderators & Channel Owner Only]</b></i></p>
+                    <p class="command-example">Moderation:help:</p>
+                </div>
+                <div class="command-card moderator-command">
+                    <h3>Moderation:permissions:</h3>
+                    <p class="command-description"><i>Shows current permission settings including cooldown, mods-only, subs-only, follower-only, and list modes. <b>[Moderators & Channel Owner Only]</b></i></p>
+                    <p class="command-example">Moderation:permissions:</p>
                 </div>
             </div>
         </div>

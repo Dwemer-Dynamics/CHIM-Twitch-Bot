@@ -285,21 +285,21 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     // Sanitize the free text
     $sanitizedFreeText = preg_replace('/[^a-zA-Z0-9\s\.,!?]/', '', $freeText);
 
-    // Use absolute path for the PHP executable
+    // Use Linux paths since we're in WSL
     $phpPath = '/usr/bin/php';
-    if (!file_exists($phpPath)) {
-        handleInvalidCommand($socket, $channel, "❌ System error: PHP executable not found");
-        return false;
-    }
-
-    // Use absolute path for the script
     $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
-    if (!file_exists($scriptPath)) {
-        handleInvalidCommand($socket, $channel, "❌ System error: Manager script not found");
+
+    if (!file_exists($phpPath)) {
+        handleInvalidCommand($socket, $channel, "❌ System error: PHP executable not found at $phpPath");
         return false;
     }
 
-    // Execute command with proper escaping and using absolute paths
+    if (!file_exists($scriptPath)) {
+        handleInvalidCommand($socket, $channel, "❌ System error: Manager script not found at $scriptPath");
+        return false;
+    }
+
+    // Execute command with proper escaping and using Linux paths
     $cmd = sprintf('%s %s %s %s %s',
         escapeshellarg($phpPath),
         escapeshellarg($scriptPath),
@@ -311,7 +311,7 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     // Execute with proper error handling
     $output = [];
     $returnCode = 0;
-    exec($cmd, $output, $returnCode);
+    exec($cmd . " 2>&1", $output, $returnCode);
 
     if ($returnCode === 0) {
         // Reset invalid command count on successful command
@@ -319,6 +319,7 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
         sendMessage($socket, $channel, "Command accepted ($COOLDOWN second cooldown until next command)");
         return true;
     } else {
+        error_log("Command execution failed. Output: " . implode("\n", $output));
         handleInvalidCommand($socket, $channel, "❌ Error executing command");
         return false;
     }
@@ -328,7 +329,8 @@ function parseCommand($socket, $channel, $user, $message) {
     global $last_command_time, $COOLDOWN, $invalid_command_count, $last_invalid_time;
     
     // Handle Rolemaster commands
-    if (strpos($message, "Rolemaster:") === 0) {
+    if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
+        global $channel_owner, $moderators;
         // Check cooldown
         $current_time = time();
         $time_since_last = $current_time - $last_command_time;
@@ -362,9 +364,46 @@ function parseCommand($socket, $channel, $user, $message) {
                 // Update cooldown time for successful command
                 $last_command_time = $current_time;
             }
+        } else if (preg_match('/^Moderation:([^:]+):?(.*)$/', $message, $matches)) {
+            // For moderation commands, we need to check if the user is a mod or channel owner
+            $user = strtolower($user);
+            if ($user === $channel_owner || in_array($user, $moderators)) {
+                $type = trim($matches[1]);
+                $freeText = isset($matches[2]) ? trim($matches[2]) : '';
+                handleModerationCommand($socket, $channel, $user, $type, $freeText);
+            }
         } else {
-            handleInvalidCommand($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type of command:free text");
+            handleInvalidCommand($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type:text or Moderation:type:");
         }
+    }
+}
+
+function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
+    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED, $COOLDOWN;
+    
+    switch (strtolower($type)) {
+        case 'help':
+            // Send help message to chat
+            $helpMessage = "📖 Commands: 🎯 Rolemaster:instruction: | 🕒 Rolemaster:suggestion: | 🗣️ Rolemaster:impersonation: | 🔒 Moderation:permissions:";
+            sendMessage($socket, $channel, $helpMessage);
+            break;
+            
+        case 'permissions':
+            // Send current permission settings
+            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Follower Only: %s | Whitelist: %s | Blacklist: %s",
+                $COOLDOWN,
+                $MODS_ONLY ? "✅" : "❌",
+                $SUBS_ONLY ? "✅" : "❌",
+                $FOLLOWER_ONLY ? "✅" : "❌",
+                $WHITELIST_ENABLED ? "✅" : "❌",
+                $BLACKLIST_ENABLED ? "✅" : "❌"
+            );
+            sendMessage($socket, $channel, $permMessage);
+            break;
+            
+        default:
+            handleInvalidCommand($socket, $channel, "❌ Unknown moderation command. Use Moderation:help: to see available commands.");
+            break;
     }
 }
 
