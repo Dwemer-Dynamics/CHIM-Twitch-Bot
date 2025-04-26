@@ -21,7 +21,7 @@ body {
 .page-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
     gap: 20px;
     height: calc(100vh - 150px);
 }
@@ -439,7 +439,7 @@ input:checked + .toggle-slider:before {
     border-radius: 8px;
     padding: 25px;
     width: 90%;
-    max-width: 600px;
+    max-width: 800px;
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
@@ -841,4 +841,63 @@ input:checked + .toggle-slider:before {
 .modal-actions .cancel-btn:hover {
     border-color: var(--twitch-purple);
     color: var(--twitch-purple);
+}
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.help-button {
+    background: none;
+    border: 2px solid var(--twitch-purple);
+    color: var(--twitch-purple);
+    cursor: pointer;
+    padding: 8px 16px;
+    font-size: 0.9em;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.help-button:hover {
+    background-color: var(--twitch-purple);
+    color: white;
+}
+
+/* Commands Modal Styles */
+.commands-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.command-card {
+    background-color: var(--twitch-dark);
+    border: 1px solid var(--twitch-gray);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.command-card h3 {
+    color: var(--twitch-purple);
+    margin: 0 0 10px 0;
+    font-size: 1.1em;
+}
+
+.command-description {
+    color: var(--twitch-light);
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+}
+
+.command-example {
+    background-color: var(--twitch-darker);
+    padding: 10px;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    margin-top: 10px;
+    color: var(--twitch-gray);
 } 

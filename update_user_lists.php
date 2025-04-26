@@ -15,8 +15,9 @@ if (!in_array($data['listType'], ['whitelist', 'blacklist'])) {
     exit;
 }
 
-// File path for the lists
+// File paths
 $lists_file = __DIR__ . "/user_lists.json";
+$flag_file = __DIR__ . "/lists_updated.flag";
 
 // Load existing lists
 $lists = [
@@ -56,6 +57,9 @@ sort($lists['blacklist']);
 $success = file_put_contents($lists_file, json_encode($lists));
 
 if ($success) {
+    // Create the flag file to signal the bot service
+    file_put_contents($flag_file, date('Y-m-d H:i:s'));
+    
     echo json_encode([
         'success' => true,
         'lists' => $lists

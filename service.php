@@ -22,37 +22,42 @@ $TWITCH_IRC_PORT = 6667;
 $USERNAME = getenv("TBOT_USERNAME");
 $OAUTH_TOKEN = "oauth:" . str_replace("oauth:", "", getenv("TBOT_OAUTH")); // Remove oauth: if already present
 $CHANNEL = getenv("TBOT_CHANNEL");
-$COOLDOWN = intval(getenv("TBOT_COOLDOWN") ?: "30"); // Default to 30 if not set
+$COOLDOWN = getenv('TBOT_COOLDOWN') ? intval(getenv('TBOT_COOLDOWN')) : 30;
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 $SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
 $FOLLOWER_ONLY = (getenv("TBOT_FOLLOWER_ONLY") ?: "0") === "1"; // Default to false if not set
 $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 $BLACKLIST_ENABLED = (getenv("TBOT_BLACKLIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 
-// Store last command time and invalid command tracking
+// Global variables for command timing
 $last_command_time = 0;
 $invalid_command_count = 0;
 $last_invalid_time = 0;
 
 // Store channel moderators and subscribers
-$moderators = [];
-$subscribers = [];
-$followers = [];
+$moderators = array();
+$subscribers = array();
+$followers = array();
 $channel_owner = strtolower($CHANNEL);
 
 // Add these global variables at the top with other globals
-$whitelist = [];
-$blacklist = [];
+$whitelist = array();
+$blacklist = array();
 
 // Add this after loading other settings
 $lists_file = __DIR__ . "/user_lists.json";
 if (file_exists($lists_file)) {
     $lists = json_decode(file_get_contents($lists_file), true);
     if (is_array($lists)) {
-        $whitelist = $lists['whitelist'] ?? [];
-        $blacklist = $lists['blacklist'] ?? [];
+        $whitelist = $lists['whitelist'] ?? array();
+        $blacklist = $lists['blacklist'] ?? array();
     }
 }
+
+// Global variables for list updates
+$lists_check_interval = 5; // Check for list updates every 5 seconds
+$last_lists_check = time();
+$lists_flag_file = __DIR__ . '/lists_updated.flag';
 
 echo date(DATE_RFC2822) . PHP_EOL;
 echo "Using config values:
@@ -176,9 +181,9 @@ function runBot($server, $port, $username, $oauth, $channel)
                 
                 echo "💬 $user: $message\n";
                 
-                if (strpos($message, "Rolemaster:") === 0) {
-                    if (canUserUseCommands($user)) {
-                        parseRolemasterCommand($socket, $channel, $user, $message);
+                if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
+                    if (canUserUseCommands($user, in_array($user, $moderators), in_array($user, $subscribers), in_array($user, $followers))) {
+                        parseCommand($socket, $channel, $user, $message);
                     }
                 }
             }
@@ -190,15 +195,25 @@ function runBot($server, $port, $username, $oauth, $channel)
             break;
         }
         
+        // Check for list updates
+        global $lists_check_interval, $last_lists_check, $lists_flag_file;
+        $current_time = time();
+        if ($current_time - $last_lists_check >= $lists_check_interval) {
+            if (file_exists($lists_flag_file)) {
+                reloadUserLists();
+            }
+            $last_lists_check = $current_time;
+        }
+        
         usleep(100000);
     }
     
     fclose($socket);
 }
 
-function canUserUseCommands($user) {
+function canUserUseCommands($user, $isMod = false, $isSub = false, $isFollower = false) {
     global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED;
-    global $moderators, $subscribers, $followers, $channel_owner;
+    global $channel_owner;
     global $whitelist, $blacklist;
     
     $user = strtolower($user);
@@ -210,7 +225,7 @@ function canUserUseCommands($user) {
     }
     
     // STEP 2: Channel owner and mods always have permission (except if blacklisted)
-    if ($user === $channel_owner || in_array($user, $moderators)) {
+    if ($user === $channel_owner || $isMod) {
         error_log("✅ User $user is channel owner/mod - Command allowed");
         return true;
     }
@@ -229,7 +244,7 @@ function canUserUseCommands($user) {
     
     // STEP 5: If Subscribers Only mode is on, check if user is a subscriber
     if ($SUBS_ONLY) {
-        if (!in_array($user, $subscribers)) {
+        if (!$isSub) {
             error_log("❌ User $user blocked - Subs Only mode is on and user is not a subscriber");
             return false;
         }
@@ -238,7 +253,7 @@ function canUserUseCommands($user) {
     
     // STEP 6: If Follower Only mode is on, check if user is a follower
     if ($FOLLOWER_ONLY) {
-        if (!isset($followers[$user])) {
+        if (!$isFollower) {
             error_log("❌ User $user blocked - Follower Only mode is on and user is not a follower");
             return false;
         }
@@ -309,45 +324,47 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     }
 }
 
-function parseRolemasterCommand($socket, $channel, $user, $message)
-{
+function parseCommand($socket, $channel, $user, $message) {
     global $last_command_time, $COOLDOWN, $invalid_command_count, $last_invalid_time;
     
-    // Check cooldown
-    $current_time = time();
-    $time_since_last = $current_time - $last_command_time;
-    
-    if ($time_since_last < $COOLDOWN) {
-        // Silently ignore during cooldown
-        return;
-    }
-
-    // Reset invalid command count if more than 10 seconds have passed
-    if ($current_time - $last_invalid_time > 10) {
-        $invalid_command_count = 0;
-    }
-
-    // Parse the message in the format: Rolemaster:type of command:free text
-    if (preg_match('/^Rolemaster:([^:]+):(.*)$/', $message, $matches)) {
-        $type = trim($matches[1]);
-        $freeText = trim($matches[2]);
-
-        // Validate the type
-        $validTypes = ['instruction', 'suggestion', 'impersonation'];
-        if (!in_array($type, $validTypes)) {
-            handleInvalidCommand($socket, $channel, "❌ Invalid command type. Valid types are: " . implode(', ', $validTypes));
+    // Handle Rolemaster commands
+    if (strpos($message, "Rolemaster:") === 0) {
+        // Check cooldown
+        $current_time = time();
+        $time_since_last = $current_time - $last_command_time;
+        
+        if ($time_since_last < $COOLDOWN) {
+            // Silently ignore during cooldown
             return;
         }
 
-        // Execute the command
-        if (executeCommand($socket, $channel, $user, 'rolemaster', $type, $freeText)) {
-            // Reset invalid command count on successful command
+        // Reset invalid command count if more than 10 seconds have passed
+        if ($current_time - $last_invalid_time > 10) {
             $invalid_command_count = 0;
-            // Update cooldown time for successful command
-            $last_command_time = $current_time;
         }
-    } else {
-        handleInvalidCommand($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type of command:free text");
+
+        // Parse the message in the format: Rolemaster:type of command:free text
+        if (preg_match('/^Rolemaster:([^:]+):(.*)$/', $message, $matches)) {
+            $type = trim($matches[1]);
+            $freeText = trim($matches[2]);
+
+            // Validate the type
+            $validTypes = ['instruction', 'suggestion', 'impersonation'];
+            if (!in_array($type, $validTypes)) {
+                handleInvalidCommand($socket, $channel, "❌ Invalid command type. Valid types are: " . implode(', ', $validTypes));
+                return;
+            }
+
+            // Execute the command
+            if (executeCommand($socket, $channel, $user, 'rolemaster', $type, $freeText)) {
+                // Reset invalid command count on successful command
+                $invalid_command_count = 0;
+                // Update cooldown time for successful command
+                $last_command_time = $current_time;
+            }
+        } else {
+            handleInvalidCommand($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type of command:free text");
+        }
     }
 }
 
@@ -463,4 +480,83 @@ function testPermissionsWithLists() {
     echo "Blacklisted sub and follower: " . (canUserUseCommands("blacklisted_user") ? "✅" : "❌") . "\n";
     
     echo "\n=== End of Test Cases ===\n";
+}
+
+// Add this function to reload the user lists
+function reloadUserLists() {
+    global $whitelist, $blacklist;
+    
+    $lists_file = __DIR__ . '/user_lists.json';
+    if (file_exists($lists_file)) {
+        try {
+            $lists_data = json_decode(file_get_contents($lists_file), true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $whitelist = isset($lists_data['whitelist']) ? $lists_data['whitelist'] : array();
+                $blacklist = isset($lists_data['blacklist']) ? $lists_data['blacklist'] : array();
+                echo date(DATE_RFC2822) . " - User lists reloaded successfully\n";
+            } else {
+                echo date(DATE_RFC2822) . " - Error parsing user lists JSON: " . json_last_error_msg() . "\n";
+            }
+        } catch (Exception $e) {
+            echo date(DATE_RFC2822) . " - Error reading user lists file: " . $e->getMessage() . "\n";
+        }
+    } else {
+        // Initialize empty lists if file doesn't exist
+        $whitelist = array();
+        $blacklist = array();
+    }
+    
+    // Remove the flag file after processing
+    if (file_exists($GLOBALS['lists_flag_file'])) {
+        unlink($GLOBALS['lists_flag_file']);
+    }
+}
+
+function checkCommandTiming() {
+    global $last_command_time, $COOLDOWN, $invalid_command_count, $last_invalid_time;
+    
+    $current_time = time();
+    
+    // Check cooldown
+    if ($current_time - $last_command_time < $COOLDOWN) {
+        return false;
+    }
+    
+    // Reset invalid command count if more than 5 minutes have passed
+    if ($current_time - $last_invalid_time > 300) {
+        $invalid_command_count = 0;
+    }
+    
+    // Check rate limiting
+    if ($invalid_command_count >= 5) {
+        return false;
+    }
+    
+    $last_command_time = $current_time;
+    return true;
+}
+
+function handleCommand($command, $username, $channel, $isMod, $isSub, $isFollower) {
+    global $invalid_command_count, $last_invalid_time;
+
+    // Check if user has permission to use commands
+    if (!canUserUseCommands($username, $isMod, $isSub, $isFollower)) {
+        return;
+    }
+
+    // Check command timing
+    if (!checkCommandTiming()) {
+        return;
+    }
+
+    // Process the command
+    switch ($command) {
+        case 'help':
+            // Handle help command
+            break;
+        default:
+            $invalid_command_count++;
+            $last_invalid_time = time();
+            break;
+    }
 }

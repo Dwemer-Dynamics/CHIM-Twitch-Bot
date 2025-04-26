@@ -173,10 +173,13 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const saveButton = document.querySelector('.save-controls-btn');
             const settingsGroup = document.querySelector('.settings-group');
             const configureButton = document.querySelector('.settings-button');
+            const whitelistBtn = document.getElementById('whitelist_btn');
+            const blacklistBtn = document.getElementById('blacklist_btn');
 
             inputs.forEach(input => {
-                if (input.id === 'follow_time') {
-                    input.disabled = isRunning || !document.getElementById('follower_only').checked;
+                if (input.id === 'whitelist_enabled' || input.id === 'blacklist_enabled') {
+                    // List enable/disable toggles should work even when bot is running
+                    input.disabled = false;
                 } else {
                     input.disabled = isRunning;
                 }
@@ -188,9 +191,14 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             if (isRunning) {
                 settingsGroup.classList.add('disabled');
                 saveButton.innerHTML = '⚠️ Stop bot to apply new settings';
+                // List management buttons should still work when bot is running
+                whitelistBtn.disabled = !document.getElementById('whitelist_enabled').checked;
+                blacklistBtn.disabled = !document.getElementById('blacklist_enabled').checked;
             } else {
                 settingsGroup.classList.remove('disabled');
                 saveButton.innerHTML = '💾 Save Bot Controls';
+                whitelistBtn.disabled = !document.getElementById('whitelist_enabled').checked;
+                blacklistBtn.disabled = !document.getElementById('blacklist_enabled').checked;
             }
         }
 
@@ -295,9 +303,14 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         <div class="connection-settings">
             <div class="settings-header">
                 <h2>⚙️ Bot Controls</h2>
-                <button type="button" class="settings-button" onclick="showModal()" title="Configure Connection Settings" <?= $is_running ? 'disabled' : '' ?>>
-                    Configure Connection Settings
-                </button>
+                <div class="header-buttons">
+                    <button type="button" class="settings-button" onclick="showModal()" title="Configure Connection Settings" <?= $is_running ? 'disabled' : '' ?>>
+                        Configure Connection Settings
+                    </button>
+                    <button type="button" class="help-button" onclick="showCommandsModal()" title="View Available Commands">
+                        📖 Available Commands
+                    </button>
+                </div>
             </div>
 
             <form method="post" id="bot-controls-form" onsubmit="return false;">
@@ -348,7 +361,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                             <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
                                         <span class="toggle-slider"></span>
                                     </label>
-                                    <span class="toggle-label">Enable Allowed Users List</span>
+                                    <span class="toggle-label">Enable Allowed Users Only Mode</span>
                                     <button type="button" class="list-action-btn" onclick="showListModal('whitelist')" 
                                             id="whitelist_btn" <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
                                         ✅ Manage Allowed Users
@@ -361,7 +374,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                             <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
                                         <span class="toggle-slider"></span>
                                     </label>
-                                    <span class="toggle-label">Enable Blocked Users List</span>
+                                    <span class="toggle-label">Enable Blocked Users Mode</span>
                                     <button type="button" class="list-action-btn danger" onclick="showListModal('blacklist')" 
                                             id="blacklist_btn" <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
                                         ❌ Manage Blocked Users
@@ -425,25 +438,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             </div>
         </div>
 
-        <div class="commands-section">
-            <h2>🎯 Available Commands</h2>
-            <div class="command-card">
-                <h3>Rolemaster:instruction:</h3>
-                <p class="command-description"><i>Will <b>[immediately]</b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
-                <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
-            </div>
-            <div class="command-card">
-                <h3>Rolemaster:suggestion:</h3>
-                <p class="command-description"><i>Will <b>[eventually during the next pause in AI conversation] </b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
-                <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
-            </div>
-            <div class="command-card">
-                <h3>Rolemaster:impersonation:</h3>
-                <p class="command-description"><i>The player character will repeat what is entered.</i></p>
-                <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
-            </div>
-        </div>
-
         <div class="log-section">
             <h2>
                 📜 Bot Output
@@ -458,6 +452,31 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     echo "No logs yet.";
                 }
                 ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commands Modal -->
+    <div class="modal-overlay" id="commandsModal">
+        <div class="modal">
+            <button class="modal-close" onclick="hideCommandsModal()">×</button>
+            <h2>📖 Available Commands</h2>
+            <div class="commands-list">
+                <div class="command-card">
+                    <h3>Rolemaster:instruction:</h3>
+                    <p class="command-description"><i>Will <b>[immediately]</b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                    <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
+                </div>
+                <div class="command-card">
+                    <h3>Rolemaster:suggestion:</h3>
+                    <p class="command-description"><i>Will <b>[eventually during the next pause in AI conversation] </b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                    <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
+                </div>
+                <div class="command-card">
+                    <h3>Rolemaster:impersonation:</h3>
+                    <p class="command-description"><i>The player character will repeat what is entered.</i></p>
+                    <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
+                </div>
             </div>
         </div>
     </div>
@@ -480,6 +499,22 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         document.getElementById('settingsModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 hideModal();
+            }
+        });
+
+        // Add these functions for the commands modal
+        function showCommandsModal() {
+            document.getElementById('commandsModal').classList.add('show');
+        }
+
+        function hideCommandsModal() {
+            document.getElementById('commandsModal').classList.remove('show');
+        }
+
+        // Close commands modal when clicking outside
+        document.getElementById('commandsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideCommandsModal();
             }
         });
     </script>
@@ -541,11 +576,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     }
 
     function showListModal(listType) {
-        if (document.querySelector('.settings-group').classList.contains('disabled')) {
-            showToast('Stop the bot before managing user lists', 'warning');
-            return;
-        }
-
         currentListType = listType;
         const modal = document.getElementById('listModal');
         const title = document.getElementById('listModalTitle');
