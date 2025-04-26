@@ -15,6 +15,17 @@ if (!file_exists( __DIR__."/vendor/autoload.php")) {
     shell_exec("$install_command");
 }
 
+// Add new endpoint for fetching logs
+if (isset($_GET['fetch_logs'])) {
+    header('Content-Type: application/json');
+    $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : [];
+    $log_content = array_reverse($log_content);
+    echo json_encode(['logs' => $log_content]);
+    exit;
+}
+
+$notification = '';
+$notification_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['tbot_username'], $_POST['tbot_oauth'], $_POST['tbot_channel'])) {
@@ -30,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($_POST['action'] === 'start') {
         if (file_exists($pid_file)) {
-            echo "⚠️ Bot is already running!";
+            $notification = "⚠️ Bot is already running!";
+            $notification_type = "warning";
         } else {
             // Set environment variables and start the bot
             $env_command = "TBOT_USERNAME='{$env_vars["TBOT_USERNAME"]}' "
@@ -43,16 +55,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pid = shell_exec($command);
 
             file_put_contents($pid_file, $pid);
-            echo "✅ Bot started with PID: $pid";
+            $notification = "Bot started successfully";
+            $notification_type = "success";
         }
     } elseif ($_POST['action'] === 'stop') {
         if (file_exists($pid_file)) {
             $pid = file_get_contents($pid_file);
             shell_exec("kill $pid"); // Stop the bot
             unlink($pid_file);
-            echo "❌ Bot stopped.";
+            $notification = "Bot stopped";
+            $notification_type = "error";
         } else {
-            echo "⚠️ Bot is not running.";
+            $notification = "Bot is not running";
+            $notification_type = "warning";
         }
     } elseif ($_POST['action'] === 'refresh') {
         header("Location: ".$_SERVER['PHP_SELF']); // Refresh the page
@@ -93,13 +108,63 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
     <link rel="stylesheet" href="main.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        let lastLogContent = '';
+        
+        function updateLogs() {
+            fetch('index.php?fetch_logs')
+                .then(response => response.json())
+                .then(data => {
+                    const newContent = data.logs.join('<br>');
+                    if (newContent !== lastLogContent) {
+                        document.querySelector('.log-box').innerHTML = newContent || 'No logs yet.';
+                        lastLogContent = newContent;
+                    }
+                })
+                .catch(error => console.error('Error fetching logs:', error));
+        }
+
+        function showToast(message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            toastContainer.appendChild(toast);
+            
+            // Trigger reflow to enable animation
+            toast.offsetHeight;
+            toast.classList.add('show');
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Update logs every 2 seconds
+        setInterval(updateLogs, 2000);
+
+        // Initial update
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLogs();
+            <?php if ($notification): ?>
+            showToast(<?= json_encode($notification) ?>, <?= json_encode($notification_type) ?>);
+            <?php endif; ?>
+        });
+    </script>
 </head>
 <body>
+    <div class="toast-container"></div>
     <h1><img src="images/ClavicusVileMask.png" alt="Clavicus Vile Mask" class="title-icon"> CHIM Twitch Bot Control Panel</h1>
 
     <div class="page-grid">
         <div class="connection-settings">
-            <form method="post">
+            <form method="post" id="bot-form">
                 <h2>⚙️ Twitch Connection Settings</h2>
                 <div class="input-group">
                     <div class="input-container">
@@ -133,9 +198,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
                 <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
                 <div class="button-group">
-                    <button type="submit" name="action" value="start">▶️ Start Bot</button>
-                    <button type="submit" name="action" value="stop">⏹ Stop Bot</button>
-                    <button type="submit" name="action" value="refresh">🔄 Refresh</button>
+                    <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?>">
+                        <?= $is_running ? '⏹ Stop Bot' : '▶️ Start Bot' ?>
+                    </button>
                 </div>
             </form>
         </div>
@@ -160,9 +225,19 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         </div>
 
         <div class="log-section">
-            <h2>📜 Bot Output</h2>
+            <h2>
+                📜 Bot Output
+                <button type="submit" name="action" value="refresh" class="refresh-btn" form="bot-form" onclick="updateLogs(); return false;">🔄 Refresh</button>
+            </h2>
             <div class="log-box">
-                <?= !empty($log_content) ? implode("<br>", $log_content) : "No logs yet." ?>
+                <?php
+                if (!empty($log_content)) {
+                    $log_content = array_reverse($log_content);
+                    echo implode("<br>", $log_content);
+                } else {
+                    echo "No logs yet.";
+                }
+                ?>
             </div>
         </div>
     </div>

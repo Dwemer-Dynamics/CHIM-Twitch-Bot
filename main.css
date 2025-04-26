@@ -119,7 +119,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .button-group {
     display: flex;
     gap: 10px;
-    margin-top: 10px;
+    margin-top: 15px;
 }
 
 button {
@@ -131,11 +131,27 @@ button {
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 button:hover {
-    background-color: #772CE8;
+    filter: brightness(1.1);
+}
+
+.start-btn {
+    background-color: #00b341;
+}
+
+.stop-btn {
+    background-color: #ff2e2e;
+}
+
+.start-btn:hover {
+    background-color: #00d44d;
+}
+
+.stop-btn:hover {
+    background-color: #ff4444;
 }
 
 .command-card {
@@ -159,6 +175,15 @@ button:hover {
     color: #00ff00;
     flex: 1;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Add spacing between log entries */
+.log-box br {
+    content: "";
+    display: block;
+    margin: 5px 0;
 }
 
 .status {
@@ -283,4 +308,92 @@ input:checked + .toggle-slider:before {
     font-size: 0.9em;
     color: var(--twitch-light);
     user-select: none;
+}
+
+.log-section h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.refresh-btn {
+    font-size: 0.9em;
+    padding: 8px 12px;
+    flex: 0 0 auto;
+    background-color: var(--twitch-darker);
+    border: 1px solid var(--twitch-gray);
+}
+
+.refresh-btn:hover {
+    background-color: var(--twitch-dark);
+    border-color: var(--twitch-purple);
+}
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    background-color: var(--twitch-darker);
+    color: var(--twitch-light);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    pointer-events: all;
+    max-width: 400px;
+    border-left: 4px solid var(--twitch-purple);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.success {
+    border-color: #00b341;
+}
+
+.toast.error {
+    border-color: #ff2e2e;
+}
+
+.toast.warning {
+    border-color: #ffa500;
+}
+
+.toast-icon {
+    font-size: 1.2em;
+}
+
+.toast-message {
+    flex: 1;
+    font-weight: 500;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--twitch-gray);
+    cursor: pointer;
+    padding: 0;
+    font-size: 1.2em;
+    transition: color 0.2s ease;
+}
+
+.toast-close:hover {
+    color: var(--twitch-light);
 } 
