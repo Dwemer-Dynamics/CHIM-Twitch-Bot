@@ -29,6 +29,11 @@ $FOLLOWER_ONLY = (getenv("TBOT_FOLLOWER_ONLY") ?: "0") === "1"; // Default to fa
 $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 $BLACKLIST_ENABLED = (getenv("TBOT_BLACKLIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 
+// Add these with other environment variables at the top
+$ROLEMASTER_INSTRUCTION_ENABLED = (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "0") === "1"; // Default to false
+$ROLEMASTER_SUGGESTION_ENABLED = (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "0") === "1"; // Default to false
+$ROLEMASTER_IMPERSONATION_ENABLED = (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "0") === "1"; // Default to false
+
 // Global variables for command timing
 $last_command_time = 0;
 $invalid_command_count = 0;
@@ -59,16 +64,29 @@ $lists_check_interval = 5; // Check for list updates every 5 seconds
 $last_lists_check = time();
 $lists_flag_file = __DIR__ . '/lists_updated.flag';
 
+// Add this function at the top with other functions
+function censorSensitiveInfo($text) {
+    // Censor OAuth tokens
+    $text = preg_replace('/oauth:[a-z0-9]+/', 'oauth:********', $text);
+    return $text;
+}
+
 echo date(DATE_RFC2822) . PHP_EOL;
 echo "Using config values:
 TWITCH_IRC_SERVER: $TWITCH_IRC_SERVER
 USERNAME: $USERNAME
-OAUTH_TOKEN: $OAUTH_TOKEN
+OAUTH_TOKEN: " . censorSensitiveInfo($OAUTH_TOKEN) . "
 CHANNEL: $CHANNEL
 COOLDOWN: $COOLDOWN seconds
 MODS ONLY: " . ($MODS_ONLY ? "Yes" : "No") . "
 SUBS ONLY: " . ($SUBS_ONLY ? "Yes" : "No") . "
 FOLLOWER ONLY: " . ($FOLLOWER_ONLY ? "Yes" : "No") . "
+WHITELIST: " . ($WHITELIST_ENABLED ? "Yes" : "No") . "
+BLACKLIST: " . ($BLACKLIST_ENABLED ? "Yes" : "No") . "
+ROLEMASTER COMMANDS:
+  - Instruction: " . ($ROLEMASTER_INSTRUCTION_ENABLED ? "Yes" : "No") . "
+  - Suggestion: " . ($ROLEMASTER_SUGGESTION_ENABLED ? "Yes" : "No") . "
+  - Impersonation: " . ($ROLEMASTER_IMPERSONATION_ENABLED ? "Yes" : "No") . "
 " . PHP_EOL;
 
 $child_pid = null;
@@ -285,21 +303,23 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     // Sanitize the free text
     $sanitizedFreeText = preg_replace('/[^a-zA-Z0-9\s\.,!?]/', '', $freeText);
 
-    // Use Linux paths since we're in WSL
+    // Use absolute path for the PHP executable
     $phpPath = '/usr/bin/php';
     $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
 
     if (!file_exists($phpPath)) {
-        handleInvalidCommand($socket, $channel, "❌ System error: PHP executable not found at $phpPath");
+        handleInvalidCommand($socket, $channel, "❌ System error: PHP executable not found");
         return false;
     }
 
+    // Use absolute path for the script
+    $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
     if (!file_exists($scriptPath)) {
-        handleInvalidCommand($socket, $channel, "❌ System error: Manager script not found at $scriptPath");
+        handleInvalidCommand($socket, $channel, "❌ System error: Manager script not found");
         return false;
     }
 
-    // Execute command with proper escaping and using Linux paths
+    // Execute command with proper escaping and using absolute paths
     $cmd = sprintf('%s %s %s %s %s',
         escapeshellarg($phpPath),
         escapeshellarg($scriptPath),
@@ -311,7 +331,7 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     // Execute with proper error handling
     $output = [];
     $returnCode = 0;
-    exec($cmd . " 2>&1", $output, $returnCode);
+    exec($cmd, $output, $returnCode);
 
     if ($returnCode === 0) {
         // Reset invalid command count on successful command
@@ -327,6 +347,7 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
 
 function parseCommand($socket, $channel, $user, $message) {
     global $last_command_time, $COOLDOWN, $invalid_command_count, $last_invalid_time;
+    global $ROLEMASTER_INSTRUCTION_ENABLED, $ROLEMASTER_SUGGESTION_ENABLED, $ROLEMASTER_IMPERSONATION_ENABLED;
     
     // Handle Rolemaster commands
     if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
@@ -349,6 +370,25 @@ function parseCommand($socket, $channel, $user, $message) {
         if (preg_match('/^Rolemaster:([^:]+):(.*)$/', $message, $matches)) {
             $type = trim($matches[1]);
             $freeText = trim($matches[2]);
+
+            // Check if the command type is enabled
+            $isEnabled = false;
+            switch ($type) {
+                case 'instruction':
+                    $isEnabled = $ROLEMASTER_INSTRUCTION_ENABLED;
+                    break;
+                case 'suggestion':
+                    $isEnabled = $ROLEMASTER_SUGGESTION_ENABLED;
+                    break;
+                case 'impersonation':
+                    $isEnabled = $ROLEMASTER_IMPERSONATION_ENABLED;
+                    break;
+            }
+
+            if (!$isEnabled) {
+                handleInvalidCommand($socket, $channel, "❌ This Rolemaster command type is currently disabled.");
+                return;
+            }
 
             // Validate the type
             $validTypes = ['instruction', 'suggestion', 'impersonation'];
@@ -380,23 +420,31 @@ function parseCommand($socket, $channel, $user, $message) {
 
 function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
     global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED, $COOLDOWN;
+    global $ROLEMASTER_INSTRUCTION_ENABLED, $ROLEMASTER_SUGGESTION_ENABLED, $ROLEMASTER_IMPERSONATION_ENABLED;
     
     switch (strtolower($type)) {
         case 'help':
             // Send help message to chat
-            $helpMessage = "📖 Commands: 🎯 Rolemaster:instruction: | 🕒 Rolemaster:suggestion: | 🗣️ Rolemaster:impersonation: | 🔒 Moderation:permissions:";
+            $helpMessage = "📖 Commands: " . 
+                ($ROLEMASTER_INSTRUCTION_ENABLED ? "🎯 Rolemaster:instruction: | " : "") .
+                ($ROLEMASTER_SUGGESTION_ENABLED ? "🕒 Rolemaster:suggestion: | " : "") .
+                ($ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️ Rolemaster:impersonation: | " : "") .
+                "🔒 Moderation:permissions:";
             sendMessage($socket, $channel, $helpMessage);
             break;
             
         case 'permissions':
             // Send current permission settings
-            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Follower Only: %s | Whitelist: %s | Blacklist: %s",
+            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Follower Only: %s | Whitelist: %s | Blacklist: %s | Rolemaster Commands: %s%s%s",
                 $COOLDOWN,
                 $MODS_ONLY ? "✅" : "❌",
                 $SUBS_ONLY ? "✅" : "❌",
                 $FOLLOWER_ONLY ? "✅" : "❌",
                 $WHITELIST_ENABLED ? "✅" : "❌",
-                $BLACKLIST_ENABLED ? "✅" : "❌"
+                $BLACKLIST_ENABLED ? "✅" : "❌",
+                $ROLEMASTER_INSTRUCTION_ENABLED ? "🎯" : "❌",
+                $ROLEMASTER_SUGGESTION_ENABLED ? "🕒" : "❌",
+                $ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️" : "❌"
             );
             sendMessage($socket, $channel, $permMessage);
             break;

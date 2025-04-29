@@ -214,6 +214,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const followerOnly = document.getElementById('follower_only').checked;
             const whitelistEnabled = document.getElementById('whitelist_enabled').checked;
             const blacklistEnabled = document.getElementById('blacklist_enabled').checked;
+            const rolemasterInstruction = document.getElementById('rolemaster_instruction').checked;
+            const rolemasterSuggestion = document.getElementById('rolemaster_suggestion').checked;
+            const rolemasterImpersonation = document.getElementById('rolemaster_impersonation').checked;
 
             fetch('update_bot_settings.php', {
                 method: 'POST',
@@ -226,7 +229,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     subsOnly: subsOnly,
                     followerOnly: followerOnly,
                     whitelistEnabled: whitelistEnabled,
-                    blacklistEnabled: blacklistEnabled
+                    blacklistEnabled: blacklistEnabled,
+                    rolemasterInstruction: rolemasterInstruction,
+                    rolemasterSuggestion: rolemasterSuggestion,
+                    rolemasterImpersonation: rolemasterImpersonation
                 })
             })
             .then(response => response.json())
@@ -239,6 +245,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('follower_only').checked = data.settings.followerOnly;
                     document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled;
                     document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled;
+                    document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction;
+                    document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion;
+                    document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation;
                     
                     // Update button states
                     document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
@@ -294,6 +303,30 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         // Initialize controls state
         updateControlsState(<?= $is_running ? 'true' : 'false' ?>);
     </script>
+    <style>
+        .rolemaster-commands-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .rolemaster-commands-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 1.2em;
+        }
+
+        .rolemaster-commands-section .toggle-container {
+            margin-bottom: 10px;
+        }
+
+        .rolemaster-commands-section .toggle-label {
+            color: #fff;
+            font-size: 0.9em;
+        }
+    </style>
 </head>
 <body>
     <div class="toast-container"></div>
@@ -348,6 +381,37 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                 <span class="toggle-slider"></span>
                             </label>
                             <span class="toggle-label">Follower Only Mode</span>
+                        </div>
+
+                        <!-- Add Rolemaster Command Settings -->
+                        <div class="rolemaster-commands-section">
+                            <h3>Rolemaster Commands</h3>
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="rolemaster_instruction" name="tbot_rolemaster_instruction_enabled" 
+                                        <?= ($env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">🎯 Instruction Command</span>
+                            </div>
+
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="rolemaster_suggestion" name="tbot_rolemaster_suggestion_enabled" 
+                                        <?= ($env_vars['TBOT_ROLEMASTER_SUGGESTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">🕒 Suggestion Command</span>
+                            </div>
+
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="rolemaster_impersonation" name="tbot_rolemaster_impersonation_enabled" 
+                                        <?= ($env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">🗣️ Impersonation Command</span>
+                            </div>
                         </div>
 
                         <!-- New User Lists Management Section -->
