@@ -392,7 +392,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                         <?= ($env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">🎯 Instruction Command</span>
+                                <span class="toggle-label">🎬 Instruction Command</span>
                             </div>
 
                             <div class="toggle-container">
@@ -528,17 +528,17 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             <div class="commands-list">
                 <h3 class="commands-section-title">Rolemaster Commands</h3>
                 <div class="command-card">
-                    <h3>Rolemaster:instruction:</h3>
-                    <p class="command-description"><i>Will <b>[immediately]</b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                    <h3>🎬 Rolemaster:instruction:</h3>
+                    <p class="command-description"><i>Will <b>immediately</b> prompt an AI NPC in the vicinity to follow your commands to the best of their ability.</i></p>
                     <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
-                    <h3>Rolemaster:suggestion:</h3>
-                    <p class="command-description"><i>Will <b>[queue] </b> prompt AI NPC's in the vicinity to follow your commands to the best of their ability.</i></p>
+                    <h3>🕒 Rolemaster:suggestion:</h3>
+                    <p class="command-description"><i>Will <b>queue</b> a prompt for an AI NPC in the vicinity to follow your commands to the best of their ability once the current scene playing has ended.</i></p>
                     <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
-                    <h3>Rolemaster:impersonation:</h3>
+                    <h3>🗣️ Rolemaster:impersonation:</h3>
                     <p class="command-description"><i>The player character will repeat what is entered.</i></p>
                     <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
                 </div>

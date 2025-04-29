@@ -426,7 +426,7 @@ function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
         case 'help':
             // Send help message to chat
             $helpMessage = "📖 Commands: " . 
-                ($ROLEMASTER_INSTRUCTION_ENABLED ? "🎯 Rolemaster:instruction: | " : "") .
+                ($ROLEMASTER_INSTRUCTION_ENABLED ? "🎬 Rolemaster:instruction: | " : "") .
                 ($ROLEMASTER_SUGGESTION_ENABLED ? "🕒 Rolemaster:suggestion: | " : "") .
                 ($ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️ Rolemaster:impersonation: | " : "") .
                 "🔒 Moderation:permissions:";
@@ -442,7 +442,7 @@ function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
                 $FOLLOWER_ONLY ? "✅" : "❌",
                 $WHITELIST_ENABLED ? "✅" : "❌",
                 $BLACKLIST_ENABLED ? "✅" : "❌",
-                $ROLEMASTER_INSTRUCTION_ENABLED ? "🎯" : "❌",
+                $ROLEMASTER_INSTRUCTION_ENABLED ? "🎬" : "❌",
                 $ROLEMASTER_SUGGESTION_ENABLED ? "🕒" : "❌",
                 $ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️" : "❌"
             );
