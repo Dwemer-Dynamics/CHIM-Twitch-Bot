@@ -336,7 +336,7 @@ function executeCommand($socket, $channel, $user, $task, $type, $freeText)
     if ($returnCode === 0) {
         // Reset invalid command count on successful command
         $invalid_command_count = 0;
-        sendMessage($socket, $channel, "Command accepted ($COOLDOWN second cooldown until next command)");
+        sendMessage($socket, $channel, "✅ Command accepted! ($COOLDOWN second cooldown)");
         return true;
     } else {
         error_log("Command execution failed. Output: " . implode("\n", $output));
@@ -386,7 +386,7 @@ function parseCommand($socket, $channel, $user, $message) {
             }
 
             if (!$isEnabled) {
-                handleInvalidCommand($socket, $channel, "❌ This Rolemaster command type is currently disabled.");
+                // Silently ignore disabled commands
                 return;
             }
 
