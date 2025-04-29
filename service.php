@@ -170,6 +170,7 @@ function runBot($server, $port, $username, $oauth, $channel)
     echo "📡 Joined #$channel\n";
     
     $last_ping = time();
+    $cooldown_over_message_sent = false;
     
     while (!feof($socket)) {
         $data = fgets($socket, 512);
@@ -202,9 +203,18 @@ function runBot($server, $port, $username, $oauth, $channel)
                 if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
                     if (canUserUseCommands($user, in_array($user, $moderators), in_array($user, $subscribers), in_array($user, $followers))) {
                         parseCommand($socket, $channel, $user, $message);
+                        $cooldown_over_message_sent = false;
                     }
                 }
             }
+        }
+        
+        // Check if cooldown is over and send message
+        global $last_command_time, $COOLDOWN;
+        $current_time = time();
+        if (!$cooldown_over_message_sent && $last_command_time > 0 && ($current_time - $last_command_time) >= $COOLDOWN) {
+            sendMessage($socket, $channel, "🔄 Cooldown is over! Commands are now available.");
+            $cooldown_over_message_sent = true;
         }
         
         // Check if we haven't received a PING in a while
