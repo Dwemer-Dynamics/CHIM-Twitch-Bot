@@ -539,7 +539,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 </div>
                 <div class="command-card">
                     <h3>🗣️ Rolemaster:impersonation:</h3>
-                    <p class="command-description"><i>The player character will repeat what is entered.</i></p>
+                    <p class="command-description"><i>The player character will repeat whatever is entered by chat. You may want to be careful with this one...</i></p>
                     <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
                 </div>
 
