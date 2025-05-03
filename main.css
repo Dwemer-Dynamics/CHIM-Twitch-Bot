@@ -95,7 +95,6 @@ input {
     width: 100%;
     min-width: 0;
     background-color: var(--twitch-dark);
-    border: 1px solid var(--twitch-gray);
     color: var(--twitch-light);
     padding: 10px;
     border-radius: 4px;
@@ -114,6 +113,16 @@ input[type="number"] {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
     opacity: 1;
+}
+
+/* Hide default spinners on number inputs */
+input[type=number]::-webkit-outer-spin-button, 
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0; 
+}
+input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
 }
 
 .button-group {
@@ -192,6 +201,8 @@ button:hover {
     margin: 5px 0;
 }
 
+/* Remove old status styling */
+/*
 .status {
     font-weight: bold;
     margin: 20px 0;
@@ -200,6 +211,7 @@ button:hover {
     background-color: var(--twitch-dark);
     border-radius: 6px;
 }
+*/
 
 a {
     color: var(--twitch-purple);
@@ -247,26 +259,90 @@ a:hover {
 
 .cooldown-container {
     display: flex;
+    flex-direction: row;
     align-items: center;
-    gap: 15px;
-    padding: 10px;
+    gap: 10px;
+    padding: 10px 15px;
     background-color: var(--twitch-darker);
     border-radius: 6px;
-}
-
-.cooldown-container input {
-    width: 80px;
-    text-align: center;
-    padding: 8px;
-    border: 1px solid var(--twitch-gray);
-    border-radius: 4px;
-    background-color: var(--twitch-dark);
-    color: var(--twitch-light);
+    margin-bottom: 10px;
 }
 
 .cooldown-container label {
     color: var(--twitch-light);
     font-weight: 500;
+    font-size: 0.9em;
+    text-align: left;
+    width: auto;
+    margin-right: 5px;
+}
+
+input[type="range"]#cooldown {
+    flex-grow: 1;
+    width: auto;
+    height: 8px;
+    cursor: pointer;
+    background: var(--twitch-dark);
+    border-radius: 3px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+/* --- Thumb Styling (Example for Webkit/Chrome) --- */
+input[type="range"]#cooldown::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 20px;
+    width: 20px;
+    background: var(--twitch-purple);
+    border-radius: 50%;
+    cursor: pointer;
+    margin-top: -7px;
+}
+
+/* --- Thumb Styling (Example for Firefox) --- */
+input[type="range"]#cooldown::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    background: var(--twitch-purple);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+/* --- Track Styling (Example for Webkit/Chrome) --- */
+input[type="range"]#cooldown::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+    background: var(--twitch-gray);
+    border-radius: 3px;
+}
+
+/* --- Track Styling (Example for Firefox) --- */
+input[type="range"]#cooldown::-moz-range-track {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+    background: var(--twitch-gray);
+    border-radius: 3px;
+}
+
+/* Style the new number input */
+input[type="number"]#cooldown-value-input {
+    width: 60px;
+    padding: 5px 8px;
+    text-align: center;
+    border: 1px solid var(--twitch-gray);
+    font-size: 0.9em;
+    flex-shrink: 0;
+}
+
+/* Style the units span */
+.cooldown-units {
+    font-size: 0.9em;
+    color: var(--twitch-gray);
+    white-space: nowrap;
 }
 
 .toggle-container {
@@ -482,9 +558,9 @@ input:checked + .toggle-slider:before {
 }
 
 .settings-button {
-    background: none;
-    border: 2px solid var(--twitch-purple);
-    color: var(--twitch-purple);
+    background-color: var(--twitch-purple);
+    border: none;
+    color: white;
     cursor: pointer;
     padding: 8px 16px;
     font-size: 0.9em;
@@ -494,8 +570,7 @@ input:checked + .toggle-slider:before {
 }
 
 .settings-button:hover {
-    background-color: var(--twitch-purple);
-    color: white;
+    filter: brightness(1.1);
 }
 
 .settings-button:disabled {
@@ -504,6 +579,7 @@ input:checked + .toggle-slider:before {
     color: var(--twitch-gray);
     cursor: not-allowed;
     opacity: 0.8;
+    white-space: nowrap;
 }
 
 .settings-button:disabled:hover {
@@ -870,9 +946,9 @@ input:checked + .toggle-slider:before {
 }
 
 .help-button {
-    background: none;
-    border: 2px solid var(--twitch-purple);
-    color: var(--twitch-purple);
+    background-color: var(--twitch-purple);
+    border: none;
+    color: white;
     cursor: pointer;
     padding: 8px 16px;
     font-size: 0.9em;
@@ -883,8 +959,7 @@ input:checked + .toggle-slider:before {
 }
 
 .help-button:hover {
-    background-color: var(--twitch-purple);
-    color: white;
+    filter: brightness(1.1);
 }
 
 /* Commands Modal Styles */
@@ -946,4 +1021,46 @@ input:checked + .toggle-slider:before {
 .blacklist-container .list-action-btn {
     width: 100%;
     margin: 0; /* Remove margin if needed */
+}
+
+/* Style the new log header */
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.log-header span {
+    font-weight: bold;
+    font-size: 1.1em; /* Adjust as needed */
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Spacing between status, button, refresh */
+}
+
+/* Style the moved status */
+.log-header .status {
+    font-weight: bold;
+    margin: 0; /* Remove default margins */
+    padding: 5px 10px;
+    background-color: var(--twitch-dark);
+    border-radius: 6px;
+    white-space: nowrap;
+    font-size: 0.9em;
+}
+
+/* Style the moved button group */
+.log-header .header-button-group {
+    margin: 0; /* Remove default margins */
+}
+
+/* Style the smaller start/stop button */
+.log-header .small-action-btn {
+    padding: 8px 12px; /* Smaller padding */
+    font-size: 0.9em;
+    flex: 0 0 auto; /* Don't grow/shrink */
 } 

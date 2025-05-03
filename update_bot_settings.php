@@ -13,8 +13,8 @@ $rolemasterInstruction = isset($data['rolemasterInstruction']) ? $data['rolemast
 $rolemasterSuggestion = isset($data['rolemasterSuggestion']) ? $data['rolemasterSuggestion'] : true;
 $rolemasterImpersonation = isset($data['rolemasterImpersonation']) ? $data['rolemasterImpersonation'] : true;
 
-// Ensure cooldown is at least 0
-$cooldown = max(0, $cooldown);
+// Ensure cooldown is at least 10 seconds
+$cooldown = max(10, intval($cooldown));
 
 // Load existing env vars if any
 $env_file = __DIR__ . "/bot_env.json";

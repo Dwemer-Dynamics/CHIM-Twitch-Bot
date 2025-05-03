@@ -170,11 +170,11 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
         function updateControlsState(isRunning) {
             // Get all relevant controls
-            const cooldownInput = document.getElementById('cooldown');
+            const cooldownSlider = document.getElementById('cooldown');
+            const cooldownValueInput = document.getElementById('cooldown-value-input');
             const modsOnlyToggle = document.getElementById('mods_only');
             const subsOnlyToggle = document.getElementById('subs_only');
             const whitelistEnabledToggle = document.getElementById('whitelist_enabled');
-            // Blacklist toggle removed, no need to select
             const rolemasterInstructionToggle = document.getElementById('rolemaster_instruction');
             const rolemasterSuggestionToggle = document.getElementById('rolemaster_suggestion');
             const rolemasterImpersonationToggle = document.getElementById('rolemaster_impersonation');
@@ -186,7 +186,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
             // List of controls to disable when bot is running
             const controlsToDisable = [
-                cooldownInput,
+                cooldownSlider,
+                cooldownValueInput,
                 modsOnlyToggle,
                 subsOnlyToggle,
                 whitelistEnabledToggle,
@@ -278,7 +279,13 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.settings) {
-                        document.getElementById('cooldown').value = data.settings.cooldown ?? 30;
+                        const cooldownSlider = document.getElementById('cooldown');
+                        const cooldownValueInput = document.getElementById('cooldown-value-input');
+                        if (cooldownSlider && cooldownValueInput) {
+                            const value = data.settings.cooldown ?? 30;
+                            cooldownSlider.value = value;
+                            cooldownValueInput.value = value;
+                        }
                         document.getElementById('mods_only').checked = data.settings.modsOnly ?? false;
                         document.getElementById('subs_only').checked = data.settings.subsOnly ?? false;
                         document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled ?? false;
@@ -290,7 +297,12 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('whitelist_btn').disabled = !(data.settings.whitelistEnabled ?? false);
                     } else {
                         // Set default values if no settings found OR error
-                        document.getElementById('cooldown').value = 30;
+                        const cooldownSlider = document.getElementById('cooldown');
+                        const cooldownValueInput = document.getElementById('cooldown-value-input');
+                        if (cooldownSlider && cooldownValueInput) {
+                           cooldownSlider.value = 30;
+                           cooldownValueInput.value = 30;
+                        }
                         document.getElementById('mods_only').checked = false;
                         document.getElementById('subs_only').checked = false;
                         document.getElementById('whitelist_enabled').checked = false;
@@ -303,7 +315,12 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 .catch(error => {
                     showToast('Error loading settings: ' + error, 'error');
                     // Set default values on error
-                    document.getElementById('cooldown').value = 30;
+                    const cooldownSlider = document.getElementById('cooldown');
+                    const cooldownValueInput = document.getElementById('cooldown-value-input');
+                        if (cooldownSlider && cooldownValueInput) {
+                           cooldownSlider.value = 30;
+                           cooldownValueInput.value = 30;
+                        }
                     document.getElementById('mods_only').checked = false;
                     document.getElementById('subs_only').checked = false;
                     document.getElementById('whitelist_enabled').checked = false;
@@ -312,6 +329,32 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('rolemaster_impersonation').checked = true;
                     document.getElementById('whitelist_btn').disabled = true; // Disabled on error
                 });
+        }
+
+        // Function to update the cooldown value display (now an input)
+        function updateCooldownDisplay() {
+            const cooldownSlider = document.getElementById('cooldown');
+            const cooldownValueInput = document.getElementById('cooldown-value-input');
+            if (cooldownSlider && cooldownValueInput) {
+                cooldownValueInput.value = cooldownSlider.value;
+            }
+        }
+
+        // Function to update the slider from the number input
+        function updateSliderFromInput() {
+            const cooldownSlider = document.getElementById('cooldown');
+            const cooldownValueInput = document.getElementById('cooldown-value-input');
+            if (cooldownSlider && cooldownValueInput) {
+                let value = parseInt(cooldownValueInput.value);
+                // Clamp value between min and max
+                const min = parseInt(cooldownSlider.min);
+                const max = parseInt(cooldownSlider.max);
+                if (isNaN(value) || value < min) value = min;
+                if (value > max) value = max;
+                
+                cooldownSlider.value = value;
+                cooldownValueInput.value = value; // Ensure input reflects clamped value
+            }
         }
 
         // Initialize controls state on page load
@@ -356,6 +399,27 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     }
                 }, true);
             }
+
+            // Add listener to update cooldown display on slider change
+            const cooldownSlider = document.getElementById('cooldown');
+            if (cooldownSlider) {
+                cooldownSlider.addEventListener('input', updateCooldownDisplay);
+            }
+            
+            // Add listener to update slider when number input changes
+            const cooldownValueInput = document.getElementById('cooldown-value-input');
+            if (cooldownValueInput) {
+                cooldownValueInput.addEventListener('change', updateSliderFromInput); // Use change to update after focus loss
+                 cooldownValueInput.addEventListener('input', () => { // Optional: immediate feedback 
+                     const value = parseInt(cooldownValueInput.value);
+                     if (!isNaN(value)) {
+                        cooldownSlider.value = Math.max(10, Math.min(600, value));
+                     }
+                 });
+            }
+            
+            // Initial update for cooldown display
+            updateCooldownDisplay();
         });
     </script>
     <style>
@@ -403,12 +467,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
             <form method="post" id="bot-controls-form" onsubmit="return false;">
                 <div class="settings-group <?= $is_running ? 'disabled' : '' ?>">
-                    <div class="cooldown-container">
-                        <input type="number" id="cooldown" name="tbot_cooldown" placeholder="30" min="0" 
-                            value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" required>
-                        <label for="cooldown">Command Cooldown (seconds)</label>
-                    </div>
-                    
                     <div class="permissions-section">
                         <h3>Permission Settings <i>(Mods will always be enabled, unless on the blocked list)</i></h3>
                         <div class="toggle-container">
@@ -478,6 +536,17 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                 </label>
                                 <span class="toggle-label">🗣️ Impersonation Command</span>
                             </div>
+
+                            <!-- Cooldown Container MOVED inside here -->
+                            <div class="cooldown-container">
+                                <label for="cooldown">Command Cooldown:</label>
+                                <input type="range" id="cooldown" name="tbot_cooldown" min="10" max="600" step="1"
+                                    value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>">
+                                <input type="number" id="cooldown-value-input" min="10" max="600" 
+                                    value="<?= htmlspecialchars($env_vars['TBOT_COOLDOWN'] ?? '30') ?>" 
+                                    aria-label="Command Cooldown Value">
+                                <span class="cooldown-units">seconds</span>
+                            </div>
                         </div>
                     </div>
 
@@ -487,12 +556,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 </div>
             </form>
 
-            <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
-            <div class="button-group">
-                <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?>" form="connection-form">
-                    <?= $is_running ? '⏹ Stop Bot' : '▶️ Start Bot' ?>
-                </button>
-            </div>
+            <!-- Status and Buttons REMOVED from here -->
         </div>
 
         <!-- Connection Settings Modal -->
@@ -536,9 +600,19 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         </div>
 
         <div class="log-section">
-            <h2>
-                📜 Bot Output
-                <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" onclick="updateLogs(); return false;">🔄 Refresh</button>
+            <h2 class="log-header">
+                <span>📜 Bot Output</span>
+                <div class="header-controls">
+                    <!-- Status MOVED here -->
+                    <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
+                    <!-- Buttons MOVED here -->
+                    <div class="button-group header-button-group">
+                        <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?> small-action-btn" form="connection-form">
+                            <?= $is_running ? '⏹ Stop Bot' : '▶️ Start Bot' ?>
+                        </button>
+                    </div>
+                    <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" onclick="updateLogs(); return false;">🔄 Refresh</button>
+                 </div>
             </h2>
             <div class="log-box">
                 <?php

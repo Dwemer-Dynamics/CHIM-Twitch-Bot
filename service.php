@@ -22,7 +22,8 @@ $TWITCH_IRC_PORT = 6667;
 $USERNAME = getenv("TBOT_USERNAME");
 $OAUTH_TOKEN = "oauth:" . str_replace("oauth:", "", getenv("TBOT_OAUTH")); // Remove oauth: if already present
 $CHANNEL = getenv("TBOT_CHANNEL");
-$COOLDOWN = getenv('TBOT_COOLDOWN') ? intval(getenv('TBOT_COOLDOWN')) : 30;
+// Ensure cooldown is at least 10, default to 30 if not set or invalid
+$COOLDOWN = max(10, intval(getenv('TBOT_COOLDOWN') ?: 30));
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 $SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
 $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
@@ -389,7 +390,9 @@ function parseCommand($socket, $channel, $user, $message) {
             }
 
             if (!$isEnabled) {
-                // Silently ignore disabled commands
+                // Log the ignored disabled command attempt
+                echo "🚫 Ignored disabled command '$type' from user '$user'\n";
+                // Silently ignore disabled commands (no message to chat)
                 return;
             }
 
