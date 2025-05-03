@@ -1,0 +1,14 @@
+# Local development/runtime files
+bot_env.json
+bot_pid.txt
+bot_output.log
+user_lists.json
+lists_updated.flag
+ext4.vhdx
+
+# Composer dependencies
+vendor/
+
+# Release script and archive
+create_release.ps1
+twitch-bot.tar.gz 
