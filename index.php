@@ -211,7 +211,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const cooldown = Math.max(0, parseInt(document.getElementById('cooldown').value) || 30);
             const modsOnly = document.getElementById('mods_only').checked;
             const subsOnly = document.getElementById('subs_only').checked;
-            const followerOnly = document.getElementById('follower_only').checked;
             const whitelistEnabled = document.getElementById('whitelist_enabled').checked;
             const blacklistEnabled = document.getElementById('blacklist_enabled').checked;
             const rolemasterInstruction = document.getElementById('rolemaster_instruction').checked;
@@ -227,7 +226,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     cooldown: cooldown,
                     modsOnly: modsOnly,
                     subsOnly: subsOnly,
-                    followerOnly: followerOnly,
                     whitelistEnabled: whitelistEnabled,
                     blacklistEnabled: blacklistEnabled,
                     rolemasterInstruction: rolemasterInstruction,
@@ -242,12 +240,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('cooldown').value = data.settings.cooldown;
                     document.getElementById('mods_only').checked = data.settings.modsOnly;
                     document.getElementById('subs_only').checked = data.settings.subsOnly;
-                    document.getElementById('follower_only').checked = data.settings.followerOnly;
                     document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled;
                     document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled;
                     document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction;
-                    document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion;
-                    document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation;
                     
                     // Update button states
                     document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
@@ -271,7 +266,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('cooldown').value = data.settings.cooldown || 30;
                         document.getElementById('mods_only').checked = data.settings.modsOnly || false;
                         document.getElementById('subs_only').checked = data.settings.subsOnly || false;
-                        document.getElementById('follower_only').checked = data.settings.followerOnly || false;
                         document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled || false;
                         document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled || false;
                         
@@ -283,7 +277,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('cooldown').value = 30;
                         document.getElementById('mods_only').checked = false;
                         document.getElementById('subs_only').checked = false;
-                        document.getElementById('follower_only').checked = false;
                         document.getElementById('whitelist_enabled').checked = false;
                         document.getElementById('blacklist_enabled').checked = false;
                     }
@@ -294,7 +287,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('cooldown').value = 30;
                     document.getElementById('mods_only').checked = false;
                     document.getElementById('subs_only').checked = false;
-                    document.getElementById('follower_only').checked = false;
                     document.getElementById('whitelist_enabled').checked = false;
                     document.getElementById('blacklist_enabled').checked = false;
                 });
@@ -362,7 +354,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                     <?= ($env_vars['TBOT_MODS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
                                 <span class="toggle-slider"></span>
                             </label>
-                            <span class="toggle-label">Mods Only Mode</span>
+                            <span class="toggle-label">Mods Only</span>
                         </div>
 
                         <div class="toggle-container">
@@ -371,16 +363,33 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                     <?= ($env_vars['TBOT_SUBS_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
                                 <span class="toggle-slider"></span>
                             </label>
-                            <span class="toggle-label">Subscribers Only Mode</span>
+                            <span class="toggle-label">Subscribers Only</span>
                         </div>
 
                         <div class="toggle-container">
                             <label class="toggle-switch">
-                                <input type="checkbox" id="follower_only" name="tbot_follower_only" 
-                                    <?= ($env_vars['TBOT_FOLLOWER_ONLY'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <input type="checkbox" id="whitelist_enabled" name="tbot_whitelist_enabled" 
+                                    <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
                                 <span class="toggle-slider"></span>
                             </label>
-                            <span class="toggle-label">Follower Only Mode</span>
+                            <span class="toggle-label">Enable Allowed Users Only Mode</span>
+                            <button type="button" class="list-action-btn" onclick="showListModal('whitelist')" 
+                                    id="whitelist_btn" <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
+                                ✅ Manage Allowed Users
+                            </button>
+                        </div>
+
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="blacklist_enabled" name="tbot_blacklist_enabled" 
+                                    <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">Enable Blocked Users Mode</span>
+                            <button type="button" class="list-action-btn danger" onclick="showListModal('blacklist')" 
+                                    id="blacklist_btn" <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
+                                ❌ Manage Blocked Users
+                            </button>
                         </div>
 
                         <!-- Add Rolemaster Command Settings -->
@@ -411,39 +420,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                     <span class="toggle-slider"></span>
                                 </label>
                                 <span class="toggle-label">🗣️ Impersonation Command</span>
-                            </div>
-                        </div>
-
-                        <!-- New User Lists Management Section -->
-                        <div class="user-lists-section">
-                            <h3>User Lists Management</h3>
-                            
-                            <div class="list-control">
-                                <div class="toggle-container">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="whitelist_enabled" name="tbot_whitelist_enabled" 
-                                            <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                    <span class="toggle-label">Enable Allowed Users Only Mode</span>
-                                    <button type="button" class="list-action-btn" onclick="showListModal('whitelist')" 
-                                            id="whitelist_btn" <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
-                                        ✅ Manage Allowed Users
-                                    </button>
-                                </div>
-
-                                <div class="toggle-container">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="blacklist_enabled" name="tbot_blacklist_enabled" 
-                                            <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                    <span class="toggle-label">Enable Blocked Users Mode</span>
-                                    <button type="button" class="list-action-btn danger" onclick="showListModal('blacklist')" 
-                                            id="blacklist_btn" <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
-                                        ❌ Manage Blocked Users
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -551,7 +527,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 </div>
                 <div class="command-card moderator-command">
                     <h3>Moderation:permissions:</h3>
-                    <p class="command-description"><i>Shows current permission settings including cooldown, mods-only, subs-only, follower-only, and list modes. <b>[Moderators & Channel Owner Only]</b></i></p>
+                    <p class="command-description"><i>Shows current permission settings including cooldown, mods-only, subs-only, and list modes. <b>[Moderators & Channel Owner Only]</b></i></p>
                     <p class="command-example">Moderation:permissions:</p>
                 </div>
             </div>

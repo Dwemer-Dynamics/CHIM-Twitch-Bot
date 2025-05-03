@@ -688,7 +688,7 @@ input:checked + .toggle-slider:before {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-width: 180px;
+    flex-shrink: 0;
 }
 
 .list-action-btn:disabled {

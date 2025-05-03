@@ -9,7 +9,6 @@ $defaultSettings = [
     'cooldown' => 30,
     'modsOnly' => false,
     'subsOnly' => false,
-    'followerOnly' => false,
     'whitelistEnabled' => false,
     'blacklistEnabled' => false,
     'rolemasterInstruction' => true,
@@ -35,7 +34,6 @@ if (file_exists($env_file)) {
     if (isset($env_vars['TBOT_COOLDOWN'])) $settings['cooldown'] = intval($env_vars['TBOT_COOLDOWN']);
     if (isset($env_vars['TBOT_MODS_ONLY'])) $settings['modsOnly'] = $env_vars['TBOT_MODS_ONLY'] === "1";
     if (isset($env_vars['TBOT_SUBS_ONLY'])) $settings['subsOnly'] = $env_vars['TBOT_SUBS_ONLY'] === "1";
-    if (isset($env_vars['TBOT_FOLLOWER_ONLY'])) $settings['followerOnly'] = $env_vars['TBOT_FOLLOWER_ONLY'] === "1";
     if (isset($env_vars['TBOT_WHITELIST_ENABLED'])) $settings['whitelistEnabled'] = $env_vars['TBOT_WHITELIST_ENABLED'] === "1";
     if (isset($env_vars['TBOT_BLACKLIST_ENABLED'])) $settings['blacklistEnabled'] = $env_vars['TBOT_BLACKLIST_ENABLED'] === "1";
     if (isset($env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'])) $settings['rolemasterInstruction'] = $env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] === "1";

@@ -25,7 +25,6 @@ $CHANNEL = getenv("TBOT_CHANNEL");
 $COOLDOWN = getenv('TBOT_COOLDOWN') ? intval(getenv('TBOT_COOLDOWN')) : 30;
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 $SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
-$FOLLOWER_ONLY = (getenv("TBOT_FOLLOWER_ONLY") ?: "0") === "1"; // Default to false if not set
 $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 $BLACKLIST_ENABLED = (getenv("TBOT_BLACKLIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 
@@ -80,7 +79,6 @@ CHANNEL: $CHANNEL
 COOLDOWN: $COOLDOWN seconds
 MODS ONLY: " . ($MODS_ONLY ? "Yes" : "No") . "
 SUBS ONLY: " . ($SUBS_ONLY ? "Yes" : "No") . "
-FOLLOWER ONLY: " . ($FOLLOWER_ONLY ? "Yes" : "No") . "
 WHITELIST: " . ($WHITELIST_ENABLED ? "Yes" : "No") . "
 BLACKLIST: " . ($BLACKLIST_ENABLED ? "Yes" : "No") . "
 ROLEMASTER COMMANDS:
@@ -201,7 +199,7 @@ function runBot($server, $port, $username, $oauth, $channel)
                 echo "💬 $user: $message\n";
                 
                 if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
-                    if (canUserUseCommands($user, in_array($user, $moderators), in_array($user, $subscribers), in_array($user, $followers))) {
+                    if (canUserUseCommands($user, in_array($user, $moderators), in_array($user, $subscribers))) {
                         parseCommand($socket, $channel, $user, $message);
                         $cooldown_over_message_sent = false;
                     }
@@ -239,8 +237,8 @@ function runBot($server, $port, $username, $oauth, $channel)
     fclose($socket);
 }
 
-function canUserUseCommands($user, $isMod = false, $isSub = false, $isFollower = false) {
-    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED;
+function canUserUseCommands($user, $isMod = false, $isSub = false) {
+    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED;
     global $channel_owner;
     global $whitelist, $blacklist;
     
@@ -277,15 +275,6 @@ function canUserUseCommands($user, $isMod = false, $isSub = false, $isFollower =
             return false;
         }
         error_log("✅ User $user is a subscriber - Proceeding with checks");
-    }
-    
-    // STEP 6: If Follower Only mode is on, check if user is a follower
-    if ($FOLLOWER_ONLY) {
-        if (!$isFollower) {
-            error_log("❌ User $user blocked - Follower Only mode is on and user is not a follower");
-            return false;
-        }
-        error_log("✅ User $user is a follower - Proceeding with checks");
     }
     
     // STEP 7: If we got here, all permission checks passed
@@ -429,7 +418,7 @@ function parseCommand($socket, $channel, $user, $message) {
 }
 
 function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
-    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED, $COOLDOWN;
+    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED, $COOLDOWN;
     global $ROLEMASTER_INSTRUCTION_ENABLED, $ROLEMASTER_SUGGESTION_ENABLED, $ROLEMASTER_IMPERSONATION_ENABLED;
     
     switch (strtolower($type)) {
@@ -445,11 +434,10 @@ function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
             
         case 'permissions':
             // Send current permission settings
-            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Follower Only: %s | Whitelist: %s | Blacklist: %s | Rolemaster Commands: %s%s%s",
+            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Whitelist: %s | Blacklist: %s | Rolemaster Commands: %s%s%s",
                 $COOLDOWN,
                 $MODS_ONLY ? "✅" : "❌",
                 $SUBS_ONLY ? "✅" : "❌",
-                $FOLLOWER_ONLY ? "✅" : "❌",
                 $WHITELIST_ENABLED ? "✅" : "❌",
                 $BLACKLIST_ENABLED ? "✅" : "❌",
                 $ROLEMASTER_INSTRUCTION_ENABLED ? "🎬" : "❌",
@@ -489,68 +477,52 @@ function sendMessage($socket, $channel, $message)
 
 // Example function to demonstrate permission checks
 function testPermissions() {
-    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY;
-    global $moderators, $subscribers, $followers, $channel_owner;
+    global $MODS_ONLY, $SUBS_ONLY;
+    global $moderators, $subscribers, $channel_owner;
     
     // Test setup
     $channel_owner = "channel_owner";
     $moderators = ["mod1", "mod2"];
-    $subscribers = ["sub1", "sub2", "both_sub_and_follower"];
-    $followers = ["follower1", "follower2", "both_sub_and_follower" => time()];
+    $subscribers = ["sub1", "sub2"];
     
     echo "\n=== Permission Test Cases ===\n";
     
     // Test Case 1: All modes OFF
-    $MODS_ONLY = false; $SUBS_ONLY = false; $FOLLOWER_ONLY = false;
+    $MODS_ONLY = false; $SUBS_ONLY = false;
     echo "\nTest Case 1 - All modes OFF:\n";
     echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
     
     // Test Case 2: Mods Only mode ON
-    $MODS_ONLY = true; $SUBS_ONLY = false; $FOLLOWER_ONLY = false;
+    $MODS_ONLY = true; $SUBS_ONLY = false;
     echo "\nTest Case 2 - Mods Only mode ON:\n";
     echo "Mod: " . (canUserUseCommands("mod1") ? "✅" : "❌") . "\n";
     echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
     
     // Test Case 3: Subs Only mode ON
-    $MODS_ONLY = false; $SUBS_ONLY = true; $FOLLOWER_ONLY = false;
+    $MODS_ONLY = false; $SUBS_ONLY = true;
     echo "\nTest Case 3 - Subs Only mode ON:\n";
     echo "Subscriber: " . (canUserUseCommands("sub1") ? "✅" : "❌") . "\n";
     echo "Non-subscriber: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
     
-    // Test Case 4: Follower Only mode ON
-    $MODS_ONLY = false; $SUBS_ONLY = false; $FOLLOWER_ONLY = true;
-    echo "\nTest Case 4 - Follower Only mode ON:\n";
-    echo "Follower: " . (canUserUseCommands("follower1") ? "✅" : "❌") . "\n";
-    echo "Non-follower: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
-    
-    // Test Case 5: Subs AND Follower mode ON
-    $MODS_ONLY = false; $SUBS_ONLY = true; $FOLLOWER_ONLY = true;
-    echo "\nTest Case 5 - Subs AND Follower mode ON:\n";
-    echo "Both sub and follower: " . (canUserUseCommands("both_sub_and_follower") ? "✅" : "❌") . "\n";
-    echo "Only subscriber: " . (canUserUseCommands("sub1") ? "✅" : "❌") . "\n";
-    echo "Only follower: " . (canUserUseCommands("follower1") ? "✅" : "❌") . "\n";
-    
-    // Test Case 6: All modes ON
-    $MODS_ONLY = true; $SUBS_ONLY = true; $FOLLOWER_ONLY = true;
-    echo "\nTest Case 6 - All modes ON:\n";
+    // Test Case 4: All modes ON (excluding Follower)
+    $MODS_ONLY = true; $SUBS_ONLY = true;
+    echo "\nTest Case 6 - Mods and Subs Only ON:\n";
     echo "Mod: " . (canUserUseCommands("mod1") ? "✅" : "❌") . "\n";
     echo "Channel owner: " . (canUserUseCommands("channel_owner") ? "✅" : "❌") . "\n";
-    echo "Regular user: " . (canUserUseCommands("regular_user") ? "✅" : "❌") . "\n";
     
     echo "\n=== End of Test Cases ===\n";
 }
 
 // Add this function to demonstrate all permission combinations
 function testPermissionsWithLists() {
-    global $MODS_ONLY, $SUBS_ONLY, $FOLLOWER_ONLY;
-    global $moderators, $subscribers, $followers, $channel_owner;
+    global $MODS_ONLY, $SUBS_ONLY;
+    global $moderators, $subscribers, $channel_owner;
     global $whitelist, $blacklist;
     
     // Test setup
     $channel_owner = "channel_owner";
     $moderators = ["mod1", "mod2"];
-    $subscribers = ["sub1", "sub2", "both_sub_and_follower"];
-    $followers = ["follower1", "follower2", "both_sub_and_follower" => time()];
+    $subscribers = ["sub1", "sub2"];
     $whitelist = ["whitelisted_user"];
     $blacklist = ["blacklisted_user", "blacklisted_mod"];
     
@@ -570,11 +542,10 @@ function testPermissionsWithLists() {
     // Test Case 3: Complex permission scenario
     $MODS_ONLY = false;
     $SUBS_ONLY = true;
-    $FOLLOWER_ONLY = true;
-    echo "\nTest Case 3 - Complex Scenario (Subs + Followers Only):\n";
-    echo "Whitelisted non-sub non-follower: " . (canUserUseCommands("whitelisted_user") ? "✅" : "❌") . "\n";
-    echo "Non-whitelisted sub and follower: " . (canUserUseCommands("both_sub_and_follower") ? "✅" : "❌") . "\n";
-    echo "Blacklisted sub and follower: " . (canUserUseCommands("blacklisted_user") ? "✅" : "❌") . "\n";
+    echo "\nTest Case 3 - Complex Scenario (Subs Only):\n";
+    echo "Whitelisted non-sub: " . (canUserUseCommands("whitelisted_user") ? "✅" : "❌") . "\n";
+    echo "Non-whitelisted sub: " . (canUserUseCommands("sub1") ? "✅" : "❌") . "\n";
+    echo "Blacklisted sub: " . (canUserUseCommands("blacklisted_user") ? "✅" : "❌") . "\n";
     
     echo "\n=== End of Test Cases ===\n";
 }
@@ -633,11 +604,11 @@ function checkCommandTiming() {
     return true;
 }
 
-function handleCommand($command, $username, $channel, $isMod, $isSub, $isFollower) {
+function handleCommand($command, $username, $channel, $isMod, $isSub) {
     global $invalid_command_count, $last_invalid_time;
 
     // Check if user has permission to use commands
-    if (!canUserUseCommands($username, $isMod, $isSub, $isFollower)) {
+    if (!canUserUseCommands($username, $isMod, $isSub)) {
         return;
     }
 
