@@ -174,11 +174,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const settingsGroup = document.querySelector('.settings-group');
             const configureButton = document.querySelector('.settings-button');
             const whitelistBtn = document.getElementById('whitelist_btn');
-            const blacklistBtn = document.getElementById('blacklist_btn');
 
             inputs.forEach(input => {
-                if (input.id === 'whitelist_enabled' || input.id === 'blacklist_enabled') {
-                    // List enable/disable toggles should work even when bot is running
+                if (input.id === 'whitelist_enabled') {
+                    // Whitelist enable/disable toggle should work even when bot is running
                     input.disabled = false;
                 } else {
                     input.disabled = isRunning;
@@ -191,14 +190,11 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             if (isRunning) {
                 settingsGroup.classList.add('disabled');
                 saveButton.innerHTML = '⚠️ Stop bot to apply new settings';
-                // List management buttons should still work when bot is running
                 whitelistBtn.disabled = !document.getElementById('whitelist_enabled').checked;
-                blacklistBtn.disabled = !document.getElementById('blacklist_enabled').checked;
             } else {
                 settingsGroup.classList.remove('disabled');
                 saveButton.innerHTML = '💾 Save Bot Controls';
                 whitelistBtn.disabled = !document.getElementById('whitelist_enabled').checked;
-                blacklistBtn.disabled = !document.getElementById('blacklist_enabled').checked;
             }
         }
 
@@ -212,7 +208,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const modsOnly = document.getElementById('mods_only').checked;
             const subsOnly = document.getElementById('subs_only').checked;
             const whitelistEnabled = document.getElementById('whitelist_enabled').checked;
-            const blacklistEnabled = document.getElementById('blacklist_enabled').checked;
             const rolemasterInstruction = document.getElementById('rolemaster_instruction').checked;
             const rolemasterSuggestion = document.getElementById('rolemaster_suggestion').checked;
             const rolemasterImpersonation = document.getElementById('rolemaster_impersonation').checked;
@@ -227,7 +222,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     modsOnly: modsOnly,
                     subsOnly: subsOnly,
                     whitelistEnabled: whitelistEnabled,
-                    blacklistEnabled: blacklistEnabled,
                     rolemasterInstruction: rolemasterInstruction,
                     rolemasterSuggestion: rolemasterSuggestion,
                     rolemasterImpersonation: rolemasterImpersonation
@@ -241,12 +235,12 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('mods_only').checked = data.settings.modsOnly;
                     document.getElementById('subs_only').checked = data.settings.subsOnly;
                     document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled;
-                    document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled;
                     document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction;
+                    document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion;
+                    document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation;
                     
                     // Update button states
                     document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
-                    document.getElementById('blacklist_btn').disabled = !data.settings.blacklistEnabled;
                 } else {
                     showToast('Failed to save bot controls: ' + data.error, 'error');
                     loadSettings();
@@ -267,18 +261,21 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('mods_only').checked = data.settings.modsOnly || false;
                         document.getElementById('subs_only').checked = data.settings.subsOnly || false;
                         document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled || false;
-                        document.getElementById('blacklist_enabled').checked = data.settings.blacklistEnabled || false;
+                        document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction || true;
+                        document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion || true;
+                        document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation || true;
                         
                         // Update button states
                         document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
-                        document.getElementById('blacklist_btn').disabled = !data.settings.blacklistEnabled;
                     } else {
                         // Set default values if no settings found
                         document.getElementById('cooldown').value = 30;
                         document.getElementById('mods_only').checked = false;
                         document.getElementById('subs_only').checked = false;
                         document.getElementById('whitelist_enabled').checked = false;
-                        document.getElementById('blacklist_enabled').checked = false;
+                        document.getElementById('rolemaster_instruction').checked = true;
+                        document.getElementById('rolemaster_suggestion').checked = true;
+                        document.getElementById('rolemaster_impersonation').checked = true;
                     }
                 })
                 .catch(error => {
@@ -288,7 +285,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('mods_only').checked = false;
                     document.getElementById('subs_only').checked = false;
                     document.getElementById('whitelist_enabled').checked = false;
-                    document.getElementById('blacklist_enabled').checked = false;
+                    document.getElementById('rolemaster_instruction').checked = true;
+                    document.getElementById('rolemaster_suggestion').checked = true;
+                    document.getElementById('rolemaster_impersonation').checked = true;
                 });
         }
 
@@ -379,15 +378,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                             </button>
                         </div>
 
-                        <div class="toggle-container">
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="blacklist_enabled" name="tbot_blacklist_enabled" 
-                                    <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <span class="toggle-label">Enable Blocked Users Mode</span>
+                        <div class="toggle-container blacklist-container">
                             <button type="button" class="list-action-btn danger" onclick="showListModal('blacklist')" 
-                                    id="blacklist_btn" <?= ($env_vars['TBOT_BLACKLIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
+                                    id="blacklist_btn">
                                 ❌ Manage Blocked Users
                             </button>
                         </div>
@@ -721,13 +714,6 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         document.getElementById('whitelist_btn').disabled = !this.checked;
         if (!this.checked) {
             showToast('Allowed Users List disabled', 'info');
-        }
-    });
-
-    document.getElementById('blacklist_enabled').addEventListener('change', function() {
-        document.getElementById('blacklist_btn').disabled = !this.checked;
-        if (!this.checked) {
-            showToast('Blocked Users List disabled', 'info');
         }
     });
     </script>

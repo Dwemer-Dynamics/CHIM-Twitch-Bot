@@ -26,7 +26,6 @@ $COOLDOWN = getenv('TBOT_COOLDOWN') ? intval(getenv('TBOT_COOLDOWN')) : 30;
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 $SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
 $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
-$BLACKLIST_ENABLED = (getenv("TBOT_BLACKLIST_ENABLED") ?: "0") === "1"; // Default to false if not set
 
 // Add these with other environment variables at the top
 $ROLEMASTER_INSTRUCTION_ENABLED = (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "0") === "1"; // Default to false
@@ -80,7 +79,6 @@ COOLDOWN: $COOLDOWN seconds
 MODS ONLY: " . ($MODS_ONLY ? "Yes" : "No") . "
 SUBS ONLY: " . ($SUBS_ONLY ? "Yes" : "No") . "
 WHITELIST: " . ($WHITELIST_ENABLED ? "Yes" : "No") . "
-BLACKLIST: " . ($BLACKLIST_ENABLED ? "Yes" : "No") . "
 ROLEMASTER COMMANDS:
   - Instruction: " . ($ROLEMASTER_INSTRUCTION_ENABLED ? "Yes" : "No") . "
   - Suggestion: " . ($ROLEMASTER_SUGGESTION_ENABLED ? "Yes" : "No") . "
@@ -238,14 +236,14 @@ function runBot($server, $port, $username, $oauth, $channel)
 }
 
 function canUserUseCommands($user, $isMod = false, $isSub = false) {
-    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED;
+    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED;
     global $channel_owner;
     global $whitelist, $blacklist;
     
     $user = strtolower($user);
     
-    // STEP 1: Check blacklist (overrides everything except channel owner) if enabled
-    if ($BLACKLIST_ENABLED && in_array($user, $blacklist) && $user !== $channel_owner) {
+    // STEP 1: Check blacklist (Always active)
+    if (in_array($user, $blacklist) && $user !== $channel_owner) {
         error_log("❌ User $user blocked - User is blacklisted");
         return false;
     }
@@ -424,7 +422,7 @@ function parseCommand($socket, $channel, $user, $message) {
 }
 
 function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
-    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED, $BLACKLIST_ENABLED, $COOLDOWN;
+    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED, $COOLDOWN;
     global $ROLEMASTER_INSTRUCTION_ENABLED, $ROLEMASTER_SUGGESTION_ENABLED, $ROLEMASTER_IMPERSONATION_ENABLED;
     
     switch (strtolower($type)) {
@@ -440,12 +438,11 @@ function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
             
         case 'permissions':
             // Send current permission settings
-            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Whitelist: %s | Blacklist: %s | Rolemaster Commands: %s%s%s",
+            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Whitelist: %s | Rolemaster Commands: %s%s%s",
                 $COOLDOWN,
                 $MODS_ONLY ? "✅" : "❌",
                 $SUBS_ONLY ? "✅" : "❌",
                 $WHITELIST_ENABLED ? "✅" : "❌",
-                $BLACKLIST_ENABLED ? "✅" : "❌",
                 $ROLEMASTER_INSTRUCTION_ENABLED ? "🎬" : "❌",
                 $ROLEMASTER_SUGGESTION_ENABLED ? "🕒" : "❌",
                 $ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️" : "❌"

@@ -920,4 +920,15 @@ input:checked + .toggle-slider:before {
 
 .command-card.moderator-command h3 {
     color: var(--twitch-purple);
+}
+
+/* Style the specific blacklist button container */
+.blacklist-container {
+    padding: 0; /* Remove padding if button should touch edges */
+    background-color: transparent; /* Remove background if needed */
+}
+
+.blacklist-container .list-action-btn {
+    width: 100%;
+    margin: 0; /* Remove margin if needed */
 } 
