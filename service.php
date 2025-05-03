@@ -256,29 +256,35 @@ function canUserUseCommands($user, $isMod = false, $isSub = false) {
         return true;
     }
     
-    // STEP 3: Check whitelist (overrides other restrictions except blacklist) if enabled
-    if ($WHITELIST_ENABLED && in_array($user, $whitelist)) {
-        error_log("✅ User $user is whitelisted - Command allowed");
-        return true;
+    // STEP 3: Whitelist Logic - If enabled, *only* allow whitelisted users (plus owner/mods checked above)
+    if ($WHITELIST_ENABLED) {
+        if (in_array($user, $whitelist)) {
+            error_log("✅ User $user is whitelisted - Command allowed");
+            return true;
+        } else {
+            error_log("❌ User $user blocked - Allowed Users Only mode is ON and user is not listed");
+            return false; // Block everyone else if whitelist is enabled
+        }
     }
     
-    // STEP 4: If Mods Only mode is on, only mods can use commands (we already checked mods above)
+    // STEP 4 & 5: Apply Mods/Subs restrictions only if Whitelist is OFF
+    // If Mods Only mode is on, block non-mods (already checked mods above)
     if ($MODS_ONLY) {
         error_log("❌ User $user blocked - Mods Only mode is on");
         return false;
     }
     
-    // STEP 5: If Subscribers Only mode is on, check if user is a subscriber
+    // If Subscribers Only mode is on, check if user is a subscriber
     if ($SUBS_ONLY) {
         if (!$isSub) {
             error_log("❌ User $user blocked - Subs Only mode is on and user is not a subscriber");
             return false;
         }
-        error_log("✅ User $user is a subscriber - Proceeding with checks");
+        error_log("✅ User $user is a subscriber - Proceeding");
     }
     
-    // STEP 7: If we got here, all permission checks passed
-    error_log("✅ User $user passed all permission checks - Command allowed");
+    // STEP 6: If we got here, Whitelist is OFF, and user wasn't blocked by Mods/Subs Only
+    error_log("✅ User $user passed standard permission checks - Command allowed");
     return true;
 }
 
