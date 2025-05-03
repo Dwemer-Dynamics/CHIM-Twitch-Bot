@@ -169,32 +169,53 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         });
 
         function updateControlsState(isRunning) {
-            const inputs = document.querySelectorAll('#bot-controls-form input');
+            // Get all relevant controls
+            const cooldownInput = document.getElementById('cooldown');
+            const modsOnlyToggle = document.getElementById('mods_only');
+            const subsOnlyToggle = document.getElementById('subs_only');
+            const whitelistEnabledToggle = document.getElementById('whitelist_enabled');
+            // Blacklist toggle removed, no need to select
+            const rolemasterInstructionToggle = document.getElementById('rolemaster_instruction');
+            const rolemasterSuggestionToggle = document.getElementById('rolemaster_suggestion');
+            const rolemasterImpersonationToggle = document.getElementById('rolemaster_impersonation');
             const saveButton = document.querySelector('.save-controls-btn');
             const settingsGroup = document.querySelector('.settings-group');
             const configureButton = document.querySelector('.settings-button');
             const whitelistBtn = document.getElementById('whitelist_btn');
+            // Blacklist button is always enabled, no need to select it here
 
-            inputs.forEach(input => {
-                if (input.id === 'whitelist_enabled') {
-                    // Whitelist enable/disable toggle should work even when bot is running
-                    input.disabled = false;
-                } else {
-                    input.disabled = isRunning;
+            // List of controls to disable when bot is running
+            const controlsToDisable = [
+                cooldownInput,
+                modsOnlyToggle,
+                subsOnlyToggle,
+                whitelistEnabledToggle,
+                rolemasterInstructionToggle,
+                rolemasterSuggestionToggle,
+                rolemasterImpersonationToggle,
+                saveButton,
+                configureButton
+            ];
+
+            // Disable/enable based on running state
+            controlsToDisable.forEach(control => {
+                if (control) { // Check if element exists
+                    control.disabled = isRunning;
                 }
             });
             
-            saveButton.disabled = isRunning;
-            configureButton.disabled = isRunning;
-            
+            // Update button text and settings group class
             if (isRunning) {
-                settingsGroup.classList.add('disabled');
-                saveButton.innerHTML = '⚠️ Stop bot to apply new settings';
-                whitelistBtn.disabled = !document.getElementById('whitelist_enabled').checked;
+                settingsGroup.classList.add('disabled'); // Add class for potential styling
+                saveButton.innerHTML = '⚠️ Stop bot to save new settings';
             } else {
-                settingsGroup.classList.remove('disabled');
+                settingsGroup.classList.remove('disabled'); // Remove class
                 saveButton.innerHTML = '💾 Save Bot Controls';
-                whitelistBtn.disabled = !document.getElementById('whitelist_enabled').checked;
+            }
+
+            // Whitelist button state should *always* be enabled, regardless of bot state or toggle state
+            if (whitelistBtn) {
+                 whitelistBtn.disabled = false; // Keep the button enabled
             }
         }
 
@@ -291,8 +312,49 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 });
         }
 
-        // Initialize controls state
-        updateControlsState(<?= $is_running ? 'true' : 'false' ?>);
+        // Initialize controls state on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateControlsState(<?= $is_running ? 'true' : 'false' ?>);
+            loadSettings(); // Also load settings from backend
+
+            // Add click prevention listeners to toggle containers
+            const toggleContainers = document.querySelectorAll('.permissions-section .toggle-container');
+            toggleContainers.forEach(container => {
+                // Skip the blacklist container as it only has a button
+                if (container.classList.contains('blacklist-container')) return;
+
+                container.addEventListener('click', function(event) {
+                    const input = this.querySelector('input[type="checkbox"]');
+                    // If the input exists and is disabled...
+                    if (input && input.disabled) {
+                        // ...and the click was on the switch itself or its label/slider
+                        const switchElement = this.querySelector('.toggle-switch');
+                        if (switchElement && switchElement.contains(event.target)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                    }
+                }, true); // Use capture phase to intercept early
+            });
+
+            // Add similar prevention for cooldown container
+            const cooldownContainer = document.querySelector('.cooldown-container');
+            if (cooldownContainer) {
+                cooldownContainer.addEventListener('click', function(event) {
+                    const input = this.querySelector('input[type="number"]');
+                    if (input && input.disabled) {
+                         // Allow clicks on the label, but maybe block the input itself if needed?
+                         // For now, let's just log, as blocking clicks here might be annoying
+                         console.log("Cooldown container clicked while disabled");
+                         // If you wanted to block changing the number via clicks:
+                         // if (event.target === input) { 
+                         //    event.preventDefault(); 
+                         //    event.stopPropagation();
+                         // }
+                    }
+                }, true);
+            }
+        });
     </script>
     <style>
         .rolemaster-commands-section {

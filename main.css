@@ -570,13 +570,28 @@ input:checked + .toggle-slider:before {
 
 .cooldown-container input:disabled,
 .toggle-switch input:disabled + .toggle-slider {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-    background-color: var(--twitch-darker);
 }
 
 .toggle-switch input:disabled + .toggle-slider:before {
     background-color: var(--twitch-gray);
+}
+
+/* Set cursor for the container when disabled, but don't fade it */
+.toggle-container:has(.toggle-switch input:disabled) {
+    cursor: not-allowed;
+}
+
+/* Apply pointer-events: none and opacity specifically to the switch */
+.toggle-container:has(.toggle-switch input:disabled) .toggle-switch {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/* Apply opacity specifically to the toggle label */
+.toggle-container:has(.toggle-switch input:disabled) .toggle-label {
+    opacity: 0.5;
 }
 
 .save-controls-btn:disabled {
