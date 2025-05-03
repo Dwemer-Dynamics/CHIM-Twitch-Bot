@@ -278,18 +278,18 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.settings) {
-                        document.getElementById('cooldown').value = data.settings.cooldown || 30;
-                        document.getElementById('mods_only').checked = data.settings.modsOnly || false;
-                        document.getElementById('subs_only').checked = data.settings.subsOnly || false;
-                        document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled || false;
-                        document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction || true;
-                        document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion || true;
-                        document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation || true;
+                        document.getElementById('cooldown').value = data.settings.cooldown ?? 30;
+                        document.getElementById('mods_only').checked = data.settings.modsOnly ?? false;
+                        document.getElementById('subs_only').checked = data.settings.subsOnly ?? false;
+                        document.getElementById('whitelist_enabled').checked = data.settings.whitelistEnabled ?? false;
+                        document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction ?? true;
+                        document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion ?? true;
+                        document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation ?? true;
                         
                         // Update button states
-                        document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
+                        document.getElementById('whitelist_btn').disabled = !(data.settings.whitelistEnabled ?? false);
                     } else {
-                        // Set default values if no settings found
+                        // Set default values if no settings found OR error
                         document.getElementById('cooldown').value = 30;
                         document.getElementById('mods_only').checked = false;
                         document.getElementById('subs_only').checked = false;
@@ -297,6 +297,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('rolemaster_instruction').checked = true;
                         document.getElementById('rolemaster_suggestion').checked = true;
                         document.getElementById('rolemaster_impersonation').checked = true;
+                        document.getElementById('whitelist_btn').disabled = true; // Disabled if settings fail to load
                     }
                 })
                 .catch(error => {
@@ -309,6 +310,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('rolemaster_instruction').checked = true;
                     document.getElementById('rolemaster_suggestion').checked = true;
                     document.getElementById('rolemaster_impersonation').checked = true;
+                    document.getElementById('whitelist_btn').disabled = true; // Disabled on error
                 });
         }
 
@@ -408,7 +410,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     </div>
                     
                     <div class="permissions-section">
-                        <h3>Permission Settings</h3>
+                        <h3>Permission Settings <i>(Mods will always be enabled, unless on the blocked list)</i></h3>
                         <div class="toggle-container">
                             <label class="toggle-switch">
                                 <input type="checkbox" id="mods_only" name="tbot_mods_only" 
