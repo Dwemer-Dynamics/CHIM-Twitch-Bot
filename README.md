@@ -1,7 +1,10 @@
 # CHIM Twitch Bot
 
-Server plugin for CHIM. A Twitch chat bot that allows viewers to control AI NPCs in your game through chat commands. Built with PHP and designed to integrate with the CHIM Server.
-CHIM can be found here https://www.nexusmods.com/skyrimspecialedition/mods/126330?tab=description
+A server plugin for the Skyrim AI mod **[CHIM](https://www.nexusmods.com/skyrimspecialedition/mods/126330?tab=description)**.
+
+This Twitch chat bot allows viewers to control AI NPCs in your game through chat commands. Built with PHP and designed to integrate with the CHIM Server.
+
+For more information on how CHIM plugins work, see the **[CHIM Plugin Documentation](https://dwemerdynamics.hostwiki.io/en/CHIM-Plugins)**.
 
 ## 🎮 Features
 

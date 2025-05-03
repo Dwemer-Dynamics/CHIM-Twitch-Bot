@@ -38,9 +38,8 @@ $last_command_time = 0;
 $invalid_command_count = 0;
 $last_invalid_time = 0;
 
-// Store channel moderators and subscribers
+// Store channel moderators
 $moderators = array();
-$subscribers = array();
 $followers = array();
 $channel_owner = strtolower($CHANNEL);
 
@@ -144,7 +143,7 @@ while (true) {
 
 function runBot($server, $port, $username, $oauth, $channel)
 {
-    global $moderators, $subscribers, $followers;
+    global $moderators, $followers;
     echo "🔌 Connecting to Twitch Chat...\n";
     
     $socket = fsockopen($server, $port, $errno, $errstr, 30);
@@ -182,23 +181,38 @@ function runBot($server, $port, $username, $oauth, $channel)
                 continue;
             }
             
-            // Check for moderator messages
-            if (strpos($data, "USERSTATE") !== false && strpos($data, "mod=1") !== false) {
-                preg_match('/login=([^;]+)/', $data, $matches);
-                if (isset($matches[1])) {
-                    $moderators[] = strtolower($matches[1]);
-                }
-            }
-            
             // Parse chat messages
-            if (preg_match('/:([^!]+)!.* PRIVMSG #\w+ :(.*)/', $data, $matches)) {
-                $user = strtolower($matches[1]);
-                $message = trim($matches[2]);
+            // Regex updated to capture tags
+            if (preg_match('/^@([^ ]+) :([^!]+)!.* PRIVMSG #\w+ :(.*)/', $data, $matches)) {
+                $tags_str = $matches[1];
+                $user = strtolower($matches[2]);
+                $message = trim($matches[3]);
+
+                // Parse tags into an associative array
+                $tags = array();
+                $tags_parts = explode(';', $tags_str);
+                foreach ($tags_parts as $part) {
+                    list($key, $value) = explode('=', $part, 2);
+                    $tags[$key] = $value;
+                }
+
+                // Determine subscriber status from tags
+                $isSub = (isset($tags['subscriber']) && $tags['subscriber'] === '1') || 
+                         (isset($tags['badges']) && strpos($tags['badges'], 'subscriber/') !== false);
                 
-                echo "💬 $user: $message\n";
+                // Determine moderator status from tags (more reliable than USERSTATE)
+                $isMod = (isset($tags['badges']) && strpos($tags['badges'], 'moderator/') !== false);
+                
+                // NOTE: Follower status cannot be reliably determined from IRC tags.
+                // The $followers array is not populated here.
+                // Follower-only mode was removed previously.
+                $isFollower = false; // Always false as we can't check it here.
+
+                echo "💬 $user: $message (Sub: " . ($isSub ? 'Yes' : 'No') . ", Mod: " . ($isMod ? 'Yes' : 'No') . ")\n";
                 
                 if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
-                    if (canUserUseCommands($user, in_array($user, $moderators), in_array($user, $subscribers))) {
+                    // Pass determined statuses directly
+                    if (canUserUseCommands($user, $isMod, $isSub)) {
                         parseCommand($socket, $channel, $user, $message);
                         $cooldown_over_message_sent = false;
                     }
