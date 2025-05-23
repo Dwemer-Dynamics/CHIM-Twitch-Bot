@@ -24,17 +24,13 @@ For more information on how CHIM plugins work, see the **[CHIM Plugin Documentat
 
 To compile the project into a distributable package:
 
-### Windows
+### Windows and Linux/macOS
 ```
-tar -czf twitch-bot.tar.gz --exclude=".git*" --exclude="*.log" *
-```
-
-### Linux/macOS
-```
-tar -czf twitch-bot.tar.gz --exclude=".git*" --exclude="*.log" .
+cd ..
+tar -czf CHIM-Twitch-Bot.tar.gz --exclude="CHIM-Twitch-Bot/.git*" --exclude="CHIM-Twitch-Bot/*.log" CHIM-Twitch-Bot
 ```
 
-The resulting `twitch-bot.tar.gz` file can be distributed and then extracted directly into the `/ext/twitch-bot` directory of the CHIM Server.
+This will create a `CHIM-Twitch-Bot.tar.gz` file in the parent directory that contains the complete folder structure.
 
 ## 🎯 Available Commands
 

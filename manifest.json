@@ -1,7 +1,7 @@
 {
-    "name":"twitch-bot",
+    "name":"CHIM-Twitch-Bot",
     "description":"Allows viewers to control AI NPC's via Twitch chat.",
-    "config_url":"/HerikaServer/ext/twitch-bot/index.php",
+    "config_url":"/HerikaServer/ext/CHIM-Twitch-Bot/index.php",
     "config_url_target": "_blank",
     "git_repo":"Dwemer-Dynamics/CHIM-Twitch-Bot",
     "version": "1.1.3",
