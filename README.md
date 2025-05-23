@@ -20,6 +20,21 @@ For more information on how CHIM plugins work, see the **[CHIM Plugin Documentat
 2. Enter in keys.
 3. Click Start Bot
 
+## 📦 Packaging
+
+To compile the project into a distributable package:
+
+### Windows
+```
+tar -czf twitch-bot.tar.gz --exclude=".git*" --exclude="*.log" *
+```
+
+### Linux/macOS
+```
+tar -czf twitch-bot.tar.gz --exclude=".git*" --exclude="*.log" .
+```
+
+The resulting `twitch-bot.tar.gz` file can be distributed and then extracted directly into the `/ext/twitch-bot` directory of the CHIM Server.
 
 ## 🎯 Available Commands
 
@@ -53,4 +68,4 @@ Feel free to submit issues and enhancement requests!
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
