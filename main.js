@@ -3,7 +3,11 @@ let testCommandInput;
 let testResults;
 let testButton;
 
-// Test Command Functionality
+/**
+ * Tests a user-entered command by sending it to the server and displays the result.
+ *
+ * Disables the input and button during the test, shows loading and result messages, and displays bot responses or debug output if available. Shows a toast notification for errors or missing input.
+ */
 function testCommand() {
     const command = testCommandInput.value.trim();
     
@@ -65,7 +69,15 @@ function testCommand() {
     });
 }
 
-// Global showToast function
+/**
+ * Displays a toast notification with a message and icon based on the specified type.
+ *
+ * @param {string} message - The message to display in the toast.
+ * @param {string} [type='info'] - The type of toast ('success', 'error', 'warning', or 'info') which determines the icon and styling.
+ *
+ * @remark
+ * The toast automatically disappears after 5 seconds or can be dismissed manually.
+ */
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -176,6 +188,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load initial settings
     loadSettings();
 
+    /**
+     * Displays a temporary status message with styling based on the specified type.
+     *
+     * The message is shown in the status element and automatically cleared after 5 seconds.
+     *
+     * @param {string} message - The status message to display.
+     * @param {string} [type='info'] - The status type, which determines the styling (e.g., 'info', 'success', 'error').
+     */
     function showStatus(message, type = 'info') {
         statusElement.textContent = message;
         statusElement.className = 'status ' + type;
@@ -189,11 +209,19 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.classList.add('show');
     }
 
+    /**
+     * Closes the modal dialog by removing the 'show' class.
+     */
     function hideModal() {
         modal.classList.remove('show');
     }
 });
 
+/**
+ * Saves the current bot settings from the UI to the server.
+ *
+ * Collects and sanitizes settings from form inputs, including cooldown, access restrictions, command toggles, command prefix, help keywords, and command name mappings, then sends them to the backend for persistence. Displays a toast notification indicating success or failure.
+ */
 function saveSettings() {
     const cooldown = Math.max(0, parseInt(document.getElementById('cooldown').value) || 30);
     const modsOnly = document.getElementById('mods_only').checked;
@@ -257,6 +285,11 @@ function saveSettings() {
     });
 }
 
+/**
+ * Loads bot settings from the server and updates the UI form fields accordingly.
+ *
+ * Fetches settings from the backend, applies them to relevant input elements, and updates command name mappings. Displays an error toast if loading fails.
+ */
 function loadSettings() {
     fetch('get_settings.php')
         .then(response => response.json())
