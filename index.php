@@ -119,6 +119,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
     <link rel="stylesheet" href="main.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="main.js"></script>
     <script>
         let lastLogContent = '';
         
@@ -178,6 +179,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const rolemasterInstructionToggle = document.getElementById('rolemaster_instruction');
             const rolemasterSuggestionToggle = document.getElementById('rolemaster_suggestion');
             const rolemasterImpersonationToggle = document.getElementById('rolemaster_impersonation');
+            const rolemasterSpawnToggle = document.getElementById('rolemaster_spawn');
+            const rolemasterEncounterToggle = document.getElementById('rolemaster_encounter');
             const saveButton = document.querySelector('.save-controls-btn');
             const settingsGroup = document.querySelector('.settings-group');
             const configureButton = document.querySelector('.settings-button');
@@ -194,6 +197,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 rolemasterInstructionToggle,
                 rolemasterSuggestionToggle,
                 rolemasterImpersonationToggle,
+                rolemasterSpawnToggle,
+                rolemasterEncounterToggle,
                 saveButton,
                 configureButton
             ];
@@ -233,6 +238,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const rolemasterInstruction = document.getElementById('rolemaster_instruction').checked;
             const rolemasterSuggestion = document.getElementById('rolemaster_suggestion').checked;
             const rolemasterImpersonation = document.getElementById('rolemaster_impersonation').checked;
+            const rolemasterSpawn = document.getElementById('rolemaster_spawn').checked;
+            const rolemasterEncounter = document.getElementById('rolemaster_encounter').checked;
+            const commandPrefix = document.getElementById('command_prefix').value.replace(/[^a-zA-Z0-9]/g, '');
 
             fetch('update_bot_settings.php', {
                 method: 'POST',
@@ -246,7 +254,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     whitelistEnabled: whitelistEnabled,
                     rolemasterInstruction: rolemasterInstruction,
                     rolemasterSuggestion: rolemasterSuggestion,
-                    rolemasterImpersonation: rolemasterImpersonation
+                    rolemasterImpersonation: rolemasterImpersonation,
+                    rolemasterSpawn: rolemasterSpawn,
+                    rolemasterEncounter: rolemasterEncounter,
+                    commandPrefix: commandPrefix
                 })
             })
             .then(response => response.json())
@@ -260,6 +271,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction;
                     document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion;
                     document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation;
+                    document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn;
+                    // Encounter command is disabled
+        // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter;
+                    document.getElementById('command_prefix').value = data.settings.commandPrefix ?? 'Rolemaster';
                     
                     // Update button states
                     document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
@@ -292,6 +307,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction ?? true;
                         document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion ?? true;
                         document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation ?? true;
+                        document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? true;
+                        // Encounter command is disabled
+        // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter ?? true;
+                        document.getElementById('command_prefix').value = data.settings.commandPrefix ?? 'Rolemaster';
                         
                         // Update button states
                         document.getElementById('whitelist_btn').disabled = !(data.settings.whitelistEnabled ?? false);
@@ -309,6 +328,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         document.getElementById('rolemaster_instruction').checked = true;
                         document.getElementById('rolemaster_suggestion').checked = true;
                         document.getElementById('rolemaster_impersonation').checked = true;
+                        document.getElementById('rolemaster_spawn').checked = true;
+                        // Encounter command is disabled
+                        // document.getElementById('rolemaster_encounter').checked = true;
+                        document.getElementById('command_prefix').value = 'Rolemaster';
                         document.getElementById('whitelist_btn').disabled = true; // Disabled if settings fail to load
                     }
                 })
@@ -327,6 +350,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     document.getElementById('rolemaster_instruction').checked = true;
                     document.getElementById('rolemaster_suggestion').checked = true;
                     document.getElementById('rolemaster_impersonation').checked = true;
+                    document.getElementById('rolemaster_spawn').checked = true;
+                    // Encounter command is disabled
+                    // document.getElementById('rolemaster_encounter').checked = true;
+                    document.getElementById('command_prefix').value = 'Rolemaster';
                     document.getElementById('whitelist_btn').disabled = true; // Disabled on error
                 });
         }
@@ -421,6 +448,31 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             // Initial update for cooldown display
             updateCooldownDisplay();
         });
+
+        // Add this function to update the test command placeholder
+        function updateTestCommandPlaceholder() {
+            const usePrefix = document.getElementById('use_command_prefix').checked;
+            const prefix = document.getElementById('command_prefix').value || 'Rolemaster';
+            const testInput = document.getElementById('test-command');
+            
+            if (usePrefix) {
+                testInput.placeholder = `${prefix}:instruction: Make Mikael tell a story`;
+            } else {
+                testInput.placeholder = "instruction: Make Mikael tell a story";
+            }
+        }
+
+        // Add event listeners for both the toggle and prefix input
+        document.addEventListener('DOMContentLoaded', function() {
+            const prefixToggle = document.getElementById('use_command_prefix');
+            const prefixInput = document.getElementById('command_prefix');
+            
+            prefixToggle.addEventListener('change', updateTestCommandPlaceholder);
+            prefixInput.addEventListener('input', updateTestCommandPlaceholder);
+            
+            // Initial update
+            updateTestCommandPlaceholder();
+        });
     </script>
     <style>
         .rolemaster-commands-section {
@@ -444,6 +496,36 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         .rolemaster-commands-section .toggle-label {
             color: #fff;
             font-size: 0.9em;
+        }
+
+        .command-prefix-container {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .command-prefix-container label {
+            display: block;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .command-prefix-container input {
+            padding: 5px 10px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #222;
+            color: #fff;
+            font-size: 14px;
+            width: 100px;
+        }
+
+        .command-prefix-container .input-description {
+            display: block;
+            color: #888;
+            font-size: 0.8em;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -512,6 +594,68 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                             <h3>Rolemaster Commands</h3>
                             <div class="toggle-container">
                                 <label class="toggle-switch">
+                                    <input type="checkbox" id="use_command_prefix" name="tbot_use_command_prefix" 
+                                        <?= ($env_vars['TBOT_USE_COMMAND_PREFIX'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">Require Command Prefix</span>
+                            </div>
+
+                            <div class="command-prefix-container">
+                                <label for="command_prefix">Command Prefix:</label>
+                                <input type="text" id="command_prefix" name="command_prefix" 
+                                    value="<?= htmlspecialchars($env_vars['TBOT_COMMAND_PREFIX'] ?? 'Rolemaster') ?>"
+                                    pattern="[a-zA-Z0-9]+" maxlength="10"
+                                    title="Only letters and numbers allowed">
+                                <span class="input-description">Only letters and numbers (e.g. 'Rolemaster' or 'rp')</span>
+                            </div>
+
+                            <div class="command-names-container">
+                                <h3>Command Names</h3>
+                                <p class="input-description">Customize how commands appear to users in your channel</p>
+                                <?php
+                                $command_map = json_decode($env_vars['TBOT_COMMAND_NAME_MAP'] ?? '{}', true) ?: [
+                                    'instruction' => 'instruction',
+                                    'suggestion' => 'suggestion',
+                                    'impersonation' => 'impersonation',
+                                    'spawn' => 'spawn',
+                                    'encounter' => 'encounter'
+                                ];
+                                
+                                $command_descriptions = [
+                                    'instruction' => 'Coordinate a scene involving multiple NPCs (up to 2-3)',
+                                    'suggestion' => 'Suggestions for NPCs to consider',
+                                    'impersonation' => 'Dialogue for the player character',
+                                    'spawn' => 'Describe a new character to spawn',
+                                    'encounter' => 'Create an enemy encounter'
+                                ];
+                                
+                                foreach ($command_descriptions as $dev_name => $description) {
+                                    // Skip encounter command (disabled)
+                                    if ($dev_name === 'encounter') continue;
+                                    
+                                    $user_name = htmlspecialchars($command_map[$dev_name] ?? $dev_name);
+                                    echo "<div class='command-name-input'>";
+                                    echo "<label for='cmd_{$dev_name}'>{$description}:</label>";
+                                    echo "<input type='text' id='cmd_{$dev_name}' name='cmd_{$dev_name}' ";
+                                    echo "value='{$user_name}' pattern='[a-zA-Z0-9]+' maxlength='15' ";
+                                    echo "title='Only letters and numbers allowed'>";
+                                    echo "</div>";
+                                }
+                                ?>
+                            </div>
+
+                            <div class="help-keywords-container">
+                                <label for="help_keywords">Help Keywords:</label>
+                                <input type="text" id="help_keywords" name="help_keywords" 
+                                    value="<?= htmlspecialchars($env_vars['TBOT_HELP_KEYWORDS'] ?? 'help,ai,Rolemaster,rp') ?>"
+                                    maxlength="100"
+                                    title="Comma-separated list of keywords">
+                                <span class="input-description">Comma-separated list of keywords that trigger help command (e.g. 'help,ai,Rolemaster,rp')</span>
+                            </div>
+
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
                                     <input type="checkbox" id="rolemaster_instruction" name="tbot_rolemaster_instruction_enabled" 
                                         <?= ($env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
@@ -537,6 +681,24 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                 <span class="toggle-label">🗣️ Impersonation Command</span>
                             </div>
 
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="rolemaster_spawn" name="tbot_rolemaster_spawn_enabled" 
+                                        <?= ($env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">👥 Spawn Command</span>
+                            </div>
+
+                            <div class="toggle-container" style="display: none;">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="rolemaster_encounter" name="tbot_rolemaster_encounter_enabled" 
+                                        <?= ($env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">⚔️ Encounter Command</span>
+                            </div>
+
                             <!-- Cooldown Container MOVED inside here -->
                             <div class="cooldown-container">
                                 <label for="cooldown">Command Cooldown:</label>
@@ -550,7 +712,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                         </div>
                     </div>
 
-                    <button type="button" onclick="saveBotControls()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
+                    <button type="button" onclick="saveSettings()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
                         <?= $is_running ? '⚠️ Stop bot to apply new settings' : '💾 Save Bot Controls' ?>
                     </button>
                 </div>
@@ -624,6 +786,26 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 }
                 ?>
             </div>
+
+            <!-- Local Testing Interface -->
+            <div class="test-section">
+                <div class="test-header">
+                    <h2>🧪 Test Commands (Only action commands)</h2>
+                </div>
+                <div class="test-interface">
+                    <div class="test-input-group">
+                        <input type="text" 
+                               id="test-command" 
+                               class="test-input" 
+                               placeholder="Make Mikael tell a story"
+                               spellcheck="false">
+                        <button type="button" class="test-button" onclick="testCommand()">Test Command</button>
+                    </div>
+                    <div class="test-output">
+                        <div class="test-results"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -637,17 +819,29 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                 <div class="command-card">
                     <h3>🎬 Rolemaster:instruction:</h3>
                     <p class="command-description"><i>Will <b>immediately</b> prompt an AI NPC in the vicinity to follow your commands to the best of their ability.</i></p>
-                    <p class="command-example">E.G. Rolemaster:instruction: Make Mikael tell a story.</p>
+                    <p class="command-example">Rolemaster:instruction: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
                     <h3>🕒 Rolemaster:suggestion:</h3>
                     <p class="command-description"><i>Will <b>queue</b> a prompt for an AI NPC in the vicinity to follow your commands to the best of their ability once the current scene playing has ended.</i></p>
-                    <p class="command-example">E.G. Rolemaster:suggestion: Make Mikael tell a story.</p>
+                    <p class="command-example">Rolemaster:suggestion: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
                     <h3>🗣️ Rolemaster:impersonation:</h3>
                     <p class="command-description"><i>The player character will repeat whatever is entered by chat. You may want to be careful with this one...</i></p>
                     <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
+                </div>
+
+                <div class="command-card">
+                    <h3>👥 Rolemaster:spawn:</h3>
+                    <p class="command-description"><i>Spawns a new character based on the provided description.</i></p>
+                    <p class="command-example">Rolemaster:spawn: A tall Nord warrior wearing steel armor</p>
+                </div>
+
+                <div class="command-card" style="display: none;">
+                    <h3>⚔️ Rolemaster:encounter:</h3>
+                    <p class="command-description"><i>Creates a random encounter or event in the current location.</i></p>
+                    <p class="command-example">Rolemaster:encounter: A group of bandits ambush the party</p>
                 </div>
 
                 <h3 class="commands-section-title">Moderation Commands</h3>
