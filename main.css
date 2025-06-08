@@ -1063,4 +1063,222 @@ input:checked + .toggle-slider:before {
     padding: 8px 12px; /* Smaller padding */
     font-size: 0.9em;
     flex: 0 0 auto; /* Don't grow/shrink */
+}
+
+/* Test Interface Styles */
+.test-section {
+    margin-top: 20px;
+    border-top: 1px solid var(--twitch-gray);
+    padding-top: 20px;
+}
+
+.test-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.test-header h2 {
+    font-size: 1.1em;
+    margin: 0;
+    color: var(--twitch-light);
+}
+
+.test-interface {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 0 15px;  /* Add horizontal padding */
+}
+
+.test-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;  /* Center items vertically */
+}
+
+.test-input {
+    flex: 1;
+    min-width: 0;  /* Allow input to shrink */
+    max-width: calc(100% - 130px);  /* Leave space for button */
+    background-color: var(--twitch-dark);
+    color: var(--twitch-light);
+    border: 1px solid var(--twitch-gray);
+    border-radius: 4px;
+    padding: 10px 15px;
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.test-input:focus {
+    outline: none;
+    border-color: var(--twitch-purple);
+}
+
+.test-input::placeholder {
+    color: var(--twitch-gray);
+    opacity: 0.7;
+}
+
+.test-button {
+    flex: 0 0 120px;  /* Fixed width for button */
+    background-color: var(--twitch-purple);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 40px;  /* Match input height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.test-button:hover {
+    filter: brightness(1.1);
+}
+
+.test-button:disabled {
+    background-color: var(--twitch-gray);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.test-output {
+    background-color: var(--twitch-dark);
+    border: 1px solid var(--twitch-gray);
+    border-radius: 4px;
+    padding: 15px;
+    min-height: 100px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 0 -15px;  /* Extend to edges while maintaining padding for input group */
+}
+
+.test-results {
+    font-family: 'Consolas', monospace;
+    color: var(--twitch-light);
+    white-space: pre-wrap;
+}
+
+.test-message {
+    margin: 5px 0;
+    padding: 8px 12px;
+    border-radius: 4px;
+    background-color: var(--twitch-darker);
+    border-left: 4px solid var(--twitch-purple);
+}
+
+.test-success {
+    color: #00b341;
+    border-left-color: #00b341;
+}
+
+.test-error {
+    color: #ff2e2e;
+    border-left-color: #ff2e2e;
+}
+
+/* Add to existing scrollbar styles */
+.test-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+.test-output::-webkit-scrollbar-track {
+    background: var(--twitch-dark);
+}
+
+.test-output::-webkit-scrollbar-thumb {
+    background: var(--twitch-purple);
+    border-radius: 4px;
+}
+
+.test-output::-webkit-scrollbar-thumb:hover {
+    background: #772CE8;
+}
+
+.test-message.test-debug {
+    font-family: 'Consolas', monospace;
+    color: #888;
+    font-size: 0.9em;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 8px 12px;
+    border-left: 4px solid #888;
+    margin: 5px 0;
+    white-space: pre-wrap;
+}
+
+.test-message.test-success {
+    color: #00b341;
+    border-left-color: #00b341;
+}
+
+.command-prefix-container label,
+.help-keywords-container label {
+    display: block;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.command-prefix-container input,
+.help-keywords-container input {
+    padding: 5px 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #222;
+    color: #fff;
+    font-size: 14px;
+    width: 100%;
+}
+
+.command-prefix-container .input-description,
+.help-keywords-container .input-description {
+    display: block;
+    color: #888;
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+.help-keywords-container {
+    margin-bottom: 20px;
+}
+
+.command-names-container {
+    margin: 20px 0;
+    padding: 15px;
+    background: #1a1a1a;
+    border-radius: 5px;
+}
+
+.command-names-container h3 {
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.command-name-input {
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.command-name-input label {
+    color: #fff;
+    flex: 1;
+    min-width: 200px;
+}
+
+.command-name-input input {
+    padding: 5px 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #222;
+    color: #fff;
+    font-size: 14px;
+    width: 150px;
 } 

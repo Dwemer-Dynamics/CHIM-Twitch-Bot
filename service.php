@@ -2,6 +2,8 @@
 
 <?php
 
+require_once __DIR__ . '/command.php';
+
 error_reporting(E_ALL);
 // Enable async signals (PHP 7.1+)
 pcntl_async_signals(true);
@@ -27,11 +29,17 @@ $COOLDOWN = max(10, intval(getenv('TBOT_COOLDOWN') ?: 30));
 $MODS_ONLY = (getenv("TBOT_MODS_ONLY") ?: "0") === "1"; // Default to false if not set
 $SUBS_ONLY = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1"; // Default to false if not set
 $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Default to false if not set
+$COMMAND_PREFIX = getenv("TBOT_COMMAND_PREFIX") ?: "Rolemaster"; // Default to "Rolemaster" if not set
 
 // Add these with other environment variables at the top
 $ROLEMASTER_INSTRUCTION_ENABLED = (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "0") === "1"; // Default to false
 $ROLEMASTER_SUGGESTION_ENABLED = (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "0") === "1"; // Default to false
 $ROLEMASTER_IMPERSONATION_ENABLED = (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "0") === "1"; // Default to false
+$ROLEMASTER_SPAWN_ENABLED = (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "0") === "1"; // Default to false
+$USE_COMMAND_PREFIX = (getenv("TBOT_USE_COMMAND_PREFIX") ?: "1") === "1"; // Default to true
+
+// Help keywords configuration
+$HELP_KEYWORDS = array_filter(explode(',', getenv("TBOT_HELP_KEYWORDS") ?: "help,ai,Rolemaster,rp"));
 
 // Global variables for command timing
 $last_command_time = 0;
@@ -62,6 +70,9 @@ $lists_check_interval = 5; // Check for list updates every 5 seconds
 $last_lists_check = time();
 $lists_flag_file = __DIR__ . '/lists_updated.flag';
 
+// Global variable for command handler
+$commandHandler = null;
+
 // Add this function at the top with other functions
 function censorSensitiveInfo($text) {
     // Censor OAuth tokens
@@ -83,6 +94,7 @@ ROLEMASTER COMMANDS:
   - Instruction: " . ($ROLEMASTER_INSTRUCTION_ENABLED ? "Yes" : "No") . "
   - Suggestion: " . ($ROLEMASTER_SUGGESTION_ENABLED ? "Yes" : "No") . "
   - Impersonation: " . ($ROLEMASTER_IMPERSONATION_ENABLED ? "Yes" : "No") . "
+  - Spawn: " . ($ROLEMASTER_SPAWN_ENABLED ? "Yes" : "No") . "
 " . PHP_EOL;
 
 $child_pid = null;
@@ -136,7 +148,9 @@ while (true) {
         sleep(2);
     } else {
         // 👶 Child process: Connect to IRC
+        echo "🚸 Child process started (PID: " . getmypid() . ")\n";
         runBot($TWITCH_IRC_SERVER, $TWITCH_IRC_PORT, $USERNAME, $OAUTH_TOKEN, $CHANNEL);
+        echo "👋 Child process exiting normally\n";
         exit(0);
     }
 }
@@ -153,10 +167,10 @@ function runBot($server, $port, $username, $oauth, $channel)
     }
     
     stream_set_blocking($socket, false);
-    
     echo "✅ Connected to Twitch Chat\n";
     
     // Authenticate
+    echo "🔑 Sending authentication...\n";
     fwrite($socket, "PASS $oauth\r\n");
     fwrite($socket, "NICK $username\r\n");
     fwrite($socket, "JOIN #$channel\r\n");
@@ -166,28 +180,54 @@ function runBot($server, $port, $username, $oauth, $channel)
     echo "📡 Joined #$channel\n";
     
     $last_ping = time();
-    $cooldown_over_message_sent = false;
+    $last_data_time = time();
+    $connection_check_time = time();
+    
+    // Initialize command handler after socket is established
+    try {
+        echo "🔧 Initializing CommandHandler...\n";
+        $commandHandler = new CommandHandler($socket, $channel);
+        echo "✅ CommandHandler initialized successfully\n";
+    } catch (Exception $e) {
+        echo "❌ Failed to initialize CommandHandler: " . $e->getMessage() . "\n";
+        if ($socket) {
+            fclose($socket);
+        }
+        return;
+    }
+    
+    // Setup lock file
+    $lock_file = sys_get_temp_dir() . "/twitch_bot_" . $channel . ".lock";
+    if (!file_exists($lock_file)) {
+        touch($lock_file);
+    }
+    
+    echo "🔄 Entering main message loop\n";
     
     while (!feof($socket)) {
         $data = fgets($socket, 512);
+        $current_time = time();
         
         if ($data) {
-            echo "📩 Raw Message: $data";
+            $last_data_time = $current_time;
+            if (trim($data) !== "") {
+                echo "📩 Raw Message: " . trim($data) . "\n";
+            }
             
             // Handle PING
             if (strpos($data, "PING") === 0) {
                 fwrite($socket, "PONG :tmi.twitch.tv\r\n");
-                $last_ping = time();
+                $last_ping = $current_time;
+                echo "🏓 PING-PONG handled\n";
                 continue;
             }
             
             // Parse chat messages
-            // Regex updated to capture tags
             if (preg_match('/^@([^ ]+) :([^!]+)!.* PRIVMSG #\w+ :(.*)/', $data, $matches)) {
                 $tags_str = $matches[1];
                 $user = strtolower($matches[2]);
                 $message = trim($matches[3]);
-
+                
                 // Parse tags into an associative array
                 $tags = array();
                 $tags_parts = explode(';', $tags_str);
@@ -195,59 +235,53 @@ function runBot($server, $port, $username, $oauth, $channel)
                     list($key, $value) = explode('=', $part, 2);
                     $tags[$key] = $value;
                 }
-
-                // Determine subscriber status from tags
+                
+                // Determine subscriber and moderator status from tags
+                $isMod = (isset($tags['badges']) && strpos($tags['badges'], 'moderator/') !== false);
                 $isSub = (isset($tags['subscriber']) && $tags['subscriber'] === '1') || 
                          (isset($tags['badges']) && strpos($tags['badges'], 'subscriber/') !== false);
                 
-                // Determine moderator status from tags (more reliable than USERSTATE)
-                $isMod = (isset($tags['badges']) && strpos($tags['badges'], 'moderator/') !== false);
-                
-                // NOTE: Follower status cannot be reliably determined from IRC tags.
-                // The $followers array is not populated here.
-                // Follower-only mode was removed previously.
-                $isFollower = false; // Always false as we can't check it here.
-
                 echo "💬 $user: $message (Sub: " . ($isSub ? 'Yes' : 'No') . ", Mod: " . ($isMod ? 'Yes' : 'No') . ")\n";
                 
-                if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
-                    // Pass determined statuses directly
-                    if (canUserUseCommands($user, $isMod, $isSub)) {
-                        parseCommand($socket, $channel, $user, $message);
-                        $cooldown_over_message_sent = false;
-                    }
-                }
+                // Let CommandHandler handle the message
+                $commandHandler->parseCommand($user, $message, $isMod, $isSub);
             }
         }
         
-        // Check if cooldown is over and send message
-        global $last_command_time, $COOLDOWN;
-        $current_time = time();
-        if (!$cooldown_over_message_sent && $last_command_time > 0 && ($current_time - $last_command_time) >= $COOLDOWN) {
-            sendMessage($socket, $channel, "🔄 Cooldown is over! Commands are now available.");
-            $cooldown_over_message_sent = true;
+        // Connection health checks
+        if ($current_time - $connection_check_time >= 30) {
+            echo "🔍 Connection health check - Last data: " . ($current_time - $last_data_time) . "s ago\n";
+            $connection_check_time = $current_time;
+            
+            // Test write to socket
+            $write_result = @fwrite($socket, "");
+            if ($write_result === false) {
+                echo "❌ Socket write test failed - connection lost\n";
+                break;
+            }
         }
         
-        // Check if we haven't received a PING in a while
-        if (time() - $last_ping > 300) {
+        // Check for stale connection
+        if ($current_time - $last_data_time > 180) {
+            echo "⚠️ No data received for 3 minutes, connection may be stale\n";
+            break;
+        }
+        
+        // Check for missing PINGs
+        if ($current_time - $last_ping > 300) {
             echo "⚠️ No PING received for 5 minutes, reconnecting...\n";
             break;
         }
         
-        // Check for list updates
-        global $lists_check_interval, $last_lists_check, $lists_flag_file;
-        $current_time = time();
-        if ($current_time - $last_lists_check >= $lists_check_interval) {
-            if (file_exists($lists_flag_file)) {
-                reloadUserLists();
-            }
-            $last_lists_check = $current_time;
-        }
-        
-        usleep(100000);
+        usleep(100000); // 100ms sleep
     }
     
-    fclose($socket);
+    echo "🔚 Exiting message loop - " . (feof($socket) ? "EOF reached" : "Connection check failed") . "\n";
+    
+    if ($socket) {
+        fclose($socket);
+        echo "🔌 Socket closed\n";
+    }
 }
 
 function canUserUseCommands($user, $isMod = false, $isSub = false) {
@@ -301,199 +335,6 @@ function canUserUseCommands($user, $isMod = false, $isSub = false) {
     return true;
 }
 
-function executeCommand($socket, $channel, $user, $task, $type, $freeText)
-{
-    global $COOLDOWN, $invalid_command_count;
-    echo "📝 Executing $task command ($type) from $user: $freeText\n";
-
-    // Input validation - only allow alphanumeric characters, spaces, and basic punctuation
-    if (!preg_match('/^[a-zA-Z0-9\s\.,!?]+$/', $freeText)) {
-        handleInvalidCommand($socket, $channel, "❌ Invalid command format. Only letters, numbers, spaces and basic punctuation are allowed.");
-        return false;
-    }
-
-    // Command length limit
-    if (strlen($freeText) > 1024) {
-        handleInvalidCommand($socket, $channel, "❌ Command too long. Maximum length is 1024 characters.");
-        return false;
-    }
-
-    // Sanitize the free text
-    $sanitizedFreeText = preg_replace('/[^a-zA-Z0-9\s\.,!?]/', '', $freeText);
-
-    // Use absolute path for the PHP executable
-    $phpPath = '/usr/bin/php';
-    $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
-
-    if (!file_exists($phpPath)) {
-        handleInvalidCommand($socket, $channel, "❌ System error: PHP executable not found");
-        return false;
-    }
-
-    // Use absolute path for the script
-    $scriptPath = '/var/www/html/HerikaServer/service/manager.php';
-    if (!file_exists($scriptPath)) {
-        handleInvalidCommand($socket, $channel, "❌ System error: Manager script not found");
-        return false;
-    }
-
-    // Execute command with proper escaping and using absolute paths
-    $cmd = sprintf('%s %s %s %s %s',
-        escapeshellarg($phpPath),
-        escapeshellarg($scriptPath),
-        escapeshellarg($task),
-        escapeshellarg($type),
-        escapeshellarg($sanitizedFreeText)
-    );
-
-    // Execute with proper error handling
-    $output = [];
-    $returnCode = 0;
-    exec($cmd, $output, $returnCode);
-
-    if ($returnCode === 0) {
-        // Reset invalid command count on successful command
-        $invalid_command_count = 0;
-        sendMessage($socket, $channel, "✅ Command accepted! ($COOLDOWN second cooldown)");
-        return true;
-    } else {
-        error_log("Command execution failed. Output: " . implode("\n", $output));
-        handleInvalidCommand($socket, $channel, "❌ Error executing command");
-        return false;
-    }
-}
-
-function parseCommand($socket, $channel, $user, $message) {
-    global $last_command_time, $COOLDOWN, $invalid_command_count, $last_invalid_time;
-    global $ROLEMASTER_INSTRUCTION_ENABLED, $ROLEMASTER_SUGGESTION_ENABLED, $ROLEMASTER_IMPERSONATION_ENABLED;
-    
-    // Handle Rolemaster commands
-    if (strpos($message, "Rolemaster:") === 0 || strpos($message, "Moderation:") === 0) {
-        global $channel_owner, $moderators;
-        // Check cooldown
-        $current_time = time();
-        $time_since_last = $current_time - $last_command_time;
-        
-        if ($time_since_last < $COOLDOWN) {
-            // Silently ignore during cooldown
-            return;
-        }
-
-        // Reset invalid command count if more than 10 seconds have passed
-        if ($current_time - $last_invalid_time > 10) {
-            $invalid_command_count = 0;
-        }
-
-        // Parse the message in the format: Rolemaster:type of command:free text
-        if (preg_match('/^Rolemaster:([^:]+):(.*)$/', $message, $matches)) {
-            $type = trim($matches[1]);
-            $freeText = trim($matches[2]);
-
-            // Check if the command type is enabled
-            $isEnabled = false;
-            switch ($type) {
-                case 'instruction':
-                    $isEnabled = $ROLEMASTER_INSTRUCTION_ENABLED;
-                    break;
-                case 'suggestion':
-                    $isEnabled = $ROLEMASTER_SUGGESTION_ENABLED;
-                    break;
-                case 'impersonation':
-                    $isEnabled = $ROLEMASTER_IMPERSONATION_ENABLED;
-                    break;
-            }
-
-            if (!$isEnabled) {
-                // Log the ignored disabled command attempt
-                echo "🚫 Ignored disabled command '$type' from user '$user'\n";
-                // Silently ignore disabled commands (no message to chat)
-                return;
-            }
-
-            // Validate the type
-            $validTypes = ['instruction', 'suggestion', 'impersonation'];
-            if (!in_array($type, $validTypes)) {
-                handleInvalidCommand($socket, $channel, "❌ Invalid command type. Valid types are: " . implode(', ', $validTypes));
-                return;
-            }
-
-            // Execute the command
-            if (executeCommand($socket, $channel, $user, 'rolemaster', $type, $freeText)) {
-                // Reset invalid command count on successful command
-                $invalid_command_count = 0;
-                // Update cooldown time for successful command
-                $last_command_time = $current_time;
-            }
-        } else if (preg_match('/^Moderation:([^:]+):?(.*)$/', $message, $matches)) {
-            // For moderation commands, we need to check if the user is a mod or channel owner
-            $user = strtolower($user);
-            if ($user === $channel_owner || in_array($user, $moderators)) {
-                $type = trim($matches[1]);
-                $freeText = isset($matches[2]) ? trim($matches[2]) : '';
-                handleModerationCommand($socket, $channel, $user, $type, $freeText);
-            }
-        } else {
-            handleInvalidCommand($socket, $channel, "❌ Invalid command format. Use: Rolemaster:type:text or Moderation:type:");
-        }
-    }
-}
-
-function handleModerationCommand($socket, $channel, $user, $type, $freeText) {
-    global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED, $COOLDOWN;
-    global $ROLEMASTER_INSTRUCTION_ENABLED, $ROLEMASTER_SUGGESTION_ENABLED, $ROLEMASTER_IMPERSONATION_ENABLED;
-    
-    switch (strtolower($type)) {
-        case 'help':
-            // Send help message to chat
-            $helpMessage = "📖 Commands: " . 
-                ($ROLEMASTER_INSTRUCTION_ENABLED ? "🎬 Rolemaster:instruction: | " : "") .
-                ($ROLEMASTER_SUGGESTION_ENABLED ? "🕒 Rolemaster:suggestion: | " : "") .
-                ($ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️ Rolemaster:impersonation: | " : "") .
-                "🔒 Moderation:permissions:";
-            sendMessage($socket, $channel, $helpMessage);
-            break;
-            
-        case 'permissions':
-            // Send current permission settings
-            $permMessage = sprintf("🔒 Current Permissions: Cooldown: %ds | Mods Only: %s | Subs Only: %s | Whitelist: %s | Rolemaster Commands: %s%s%s",
-                $COOLDOWN,
-                $MODS_ONLY ? "✅" : "❌",
-                $SUBS_ONLY ? "✅" : "❌",
-                $WHITELIST_ENABLED ? "✅" : "❌",
-                $ROLEMASTER_INSTRUCTION_ENABLED ? "🎬" : "❌",
-                $ROLEMASTER_SUGGESTION_ENABLED ? "🕒" : "❌",
-                $ROLEMASTER_IMPERSONATION_ENABLED ? "🗣️" : "❌"
-            );
-            sendMessage($socket, $channel, $permMessage);
-            break;
-            
-        default:
-            handleInvalidCommand($socket, $channel, "❌ Unknown moderation command. Use Moderation:help: to see available commands.");
-            break;
-    }
-}
-
-function handleInvalidCommand($socket, $channel, $errorMessage) {
-    global $invalid_command_count, $last_invalid_time, $last_command_time, $COOLDOWN;
-    
-    $current_time = time();
-    $last_invalid_time = $current_time;
-    $invalid_command_count++;
-
-    if ($invalid_command_count >= 3) {
-        // Trigger cooldown after 3 invalid attempts
-        $last_command_time = $current_time;
-        $invalid_command_count = 0;
-        sendMessage($socket, $channel, "$errorMessage (Cooldown activated due to multiple invalid attempts)");
-    } else {
-        sendMessage($socket, $channel, $errorMessage);
-    }
-}
-
-function sendMessage($socket, $channel, $message)
-{
-    fwrite($socket, "PRIVMSG #$channel :$message\r\n");
-}
 
 // Example function to demonstrate permission checks
 function testPermissions() {
