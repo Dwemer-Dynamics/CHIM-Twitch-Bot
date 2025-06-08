@@ -37,6 +37,11 @@ class CommandHandler {
         "flame_atronach", "dremora", "cultist", "necromancer", "falmer"
     ];
 
+    /**
+     * Initializes a new CommandHandler instance with IRC connection details, environment-based configuration, command mappings, and user access lists.
+     *
+     * Loads command prefix, permission modes, help keywords, command type enablement, and user whitelist/blacklist from environment variables and files. Sets up paths for command execution scripts.
+     */
     public function __construct($socket = null, $channel = null, $message_callback = null) {
         // Store IRC connection details if provided
         $this->socket = $socket;
@@ -87,6 +92,13 @@ class CommandHandler {
         $this->manager_script = getenv("TBOT_MANAGER_SCRIPT") ?: '/var/www/html/HerikaServer/service/manager.php';
     }
 
+    /**
+     * Sends a message to the chat channel via IRC socket or a callback function.
+     *
+     * If an IRC connection is available, the message is sent directly to the channel. Otherwise, the message is delivered using a provided callback.
+     *
+     * @param string $message The message to send.
+     */
     public function sendMessage($message) {
         if ($this->socket && $this->channel) {
             // If we have an IRC connection, send through IRC
@@ -97,6 +109,13 @@ class CommandHandler {
         }
     }
 
+    /**
+     * Handles invalid command attempts by notifying the user and suggesting the help command.
+     *
+     * Tracks consecutive invalid command attempts and, after three, sends a message indicating multiple invalid attempts along with help guidance.
+     *
+     * @param string $errorMessage The error message to display to the user.
+     */
     public function handleInvalidCommand($errorMessage) {
         $current_time = time();
         $this->last_invalid_time = $current_time;
@@ -113,6 +132,16 @@ class CommandHandler {
         }
     }
 
+    /**
+     * Determines whether a user is permitted to execute commands based on blacklist, whitelist, and channel permission settings.
+     *
+     * Evaluates user access by checking blacklist status, channel ownership, moderator status, whitelist enforcement, and channel modes such as mods-only and subs-only.
+     *
+     * @param string $user The username to check for command permissions.
+     * @param bool $isMod Whether the user is a moderator.
+     * @param bool $isSub Whether the user is a subscriber.
+     * @return bool True if the user is allowed to use commands; false otherwise.
+     */
     public function canUserUseCommands($user, $isMod = false, $isSub = false) {
         $user = strtolower($user);
         
@@ -155,6 +184,11 @@ class CommandHandler {
         return true;
     }
 
+    /**
+     * Loads the whitelist and blacklist arrays from a JSON file if it exists.
+     *
+     * Updates the in-memory user lists based on the contents of the configured lists file.
+     */
     private function loadUserLists() {
         if (file_exists($this->lists_file)) {
             $lists = json_decode(file_get_contents($this->lists_file), true);
@@ -165,6 +199,11 @@ class CommandHandler {
         }
     }
 
+    /**
+     * Checks if the user whitelist or blacklist needs to be reloaded and reloads them if necessary.
+     *
+     * Reloads the user lists from file if a flag file exists, then removes the flag file. This check occurs at a fixed interval.
+     */
     public function checkAndReloadLists() {
         $current_time = time();
         if ($current_time - $this->last_lists_check >= $this->lists_check_interval) {
@@ -176,14 +215,41 @@ class CommandHandler {
         }
     }
 
+    /**
+     * Returns the user-facing command name corresponding to a developer command name.
+     *
+     * If no mapping exists, returns the original developer command name.
+     *
+     * @param string $devCommand The internal developer command name.
+     * @return string The user-facing command name.
+     */
     private function getUserCommandName($devCommand) {
         return $this->command_name_map[$devCommand] ?? $devCommand;
     }
 
+    /**
+     * Retrieves the developer-facing command name corresponding to a user-facing command name.
+     *
+     * If no mapping exists, returns the original user command name.
+     *
+     * @param string $userCommand The user-facing command name.
+     * @return string The developer-facing command name.
+     */
     private function getDevCommandName($userCommand) {
         return $this->command_name_reverse_map[$userCommand] ?? $userCommand;
     }
 
+    /**
+     * Parses and processes a chat message as a potential command.
+     *
+     * Determines if the message is a help request, a moderation command, or a user command. Validates command format, checks user permissions, and dispatches the command for execution or help handling. Returns true if the message was handled as a command or help request, false otherwise.
+     *
+     * @param string $user The username of the message sender.
+     * @param string $message The chat message to parse.
+     * @param bool $isMod Whether the user has moderator privileges.
+     * @param bool $isSub Whether the user is a subscriber.
+     * @return bool True if the message was handled as a command or help request, false if ignored or not permitted.
+     */
     public function parseCommand($user, $message, $isMod = false, $isSub = false) {
         // First check if this is a help command
         $helpType = $this->isHelpCommand($message);
@@ -247,6 +313,14 @@ class CommandHandler {
         return false;
     }
 
+    /**
+     * Normalizes a chat command message by removing the command prefix if required and validating its format.
+     *
+     * Returns the normalized command string if valid, or false if the message does not conform to the expected command format or prefix requirements. Moderation commands are returned unchanged.
+     *
+     * @param string $message The raw chat message to normalize.
+     * @return string|false The normalized command string, or false if invalid.
+     */
     private function normalizeCommand($message) {
         $lowercaseMessage = strtolower($message);
         
@@ -281,6 +355,11 @@ class CommandHandler {
         return false;
     }
 
+    /**
+     * Returns a message describing the correct command format based on whether a command prefix is required.
+     *
+     * @return string Help message indicating the expected command syntax.
+     */
     private function getCommandFormatHelp() {
         if ($this->use_command_prefix) {
             return "❌ Invalid command format. Use: {$this->command_prefix}:type:text or Moderation:type:";
@@ -289,6 +368,14 @@ class CommandHandler {
         }
     }
 
+    /**
+     * Determines if a message is a help command and identifies its type.
+     *
+     * Returns 'general' for general help commands, 'specific' for help requests targeting a specific command, or false if the message is not a help command.
+     *
+     * @param string $message The chat message to evaluate.
+     * @return string|false The type of help command ('general', 'specific'), or false if not a help command.
+     */
     private function isHelpCommand($message) {
         // Check if message starts with ! and matches any help keyword (case insensitive)
         if (strlen($message) > 1 && $message[0] === '!') {
@@ -307,6 +394,12 @@ class CommandHandler {
         return false;
     }
     
+    /**
+     * Determines if a keyword corresponds to an enabled command type, matching either user-facing or developer command names.
+     *
+     * @param string $keyword The command keyword to check.
+     * @return bool True if the keyword matches an enabled command type; otherwise, false.
+     */
     private function isSpecificCommandHelp($keyword) {
         // Check if the keyword matches any enabled command (user name or dev name)
         $validTypes = array_keys($this->command_types_enabled);
@@ -329,6 +422,13 @@ class CommandHandler {
         return false;
     }
     
+    /**
+     * Sends a detailed help message for a specific command type based on the provided keyword.
+     *
+     * Determines the command type from the keyword, constructs a usage example, and sends a description of the command's purpose and usage to the user.
+     *
+     * @param string $keyword The command keyword for which help is requested.
+     */
     private function handleSpecificCommandHelp($keyword) {
         // Find the command type (try user name first, then dev name)
         $commandType = null;
@@ -391,6 +491,17 @@ class CommandHandler {
         $this->sendMessage($helpMessage);
     }
 
+    /**
+     * Processes a user command by validating its type and executing it if enabled.
+     *
+     * Validates the user-facing command type, checks if the corresponding developer command type is enabled, and executes the command if permitted. Sends appropriate feedback messages based on the outcome.
+     *
+     * @param string $user The username issuing the command.
+     * @param string $userType The user-facing command type as provided by the user.
+     * @param string $type The internal developer command type.
+     * @param string $freeText The command's free text or arguments.
+     * @return bool True if the command was successfully executed; false otherwise.
+     */
     private function processCommand($user, $userType, $type, $freeText) {
         // Validate the type
         $validTypes = array_keys($this->command_types_enabled);
@@ -419,6 +530,9 @@ class CommandHandler {
         return false;
     }
 
+    /**
+     * Sends a help message to the user listing all enabled AI commands with their descriptions and usage formats.
+     */
     private function handleHelpCommand($user) {
         // Build help message showing available commands and their descriptions
         $helpMessage = "🤖 AI Commands Available:";
@@ -456,6 +570,17 @@ class CommandHandler {
         $this->sendMessage($helpMessage);
     }
 
+    /**
+     * Executes a user command by sanitizing input, validating format and length, and invoking the external manager script.
+     *
+     * For "encounter" commands, performs additional API processing before execution. Returns true on successful execution, or false if validation fails or an error occurs.
+     *
+     * @param string $user The username issuing the command.
+     * @param string $task The task or action to perform.
+     * @param string $type The command type (e.g., instruction, encounter).
+     * @param string $freeText The user-provided command text.
+     * @return bool True if the command was executed successfully, false otherwise.
+     */
     public function executeCommand($user, $task, $type, $freeText) {
         // First sanitize common text characters that won't alter meaning
         // Handle both ASCII and Unicode quotes/apostrophes (smart quotes from Apple devices)
@@ -523,6 +648,11 @@ class CommandHandler {
         }
     }
 
+    /**
+     * Handles moderation-specific commands such as displaying help or reporting current permission settings.
+     *
+     * Supports 'help' to list available commands and 'permissions' to show current moderation and command enablement status. Sends an error message for unknown moderation commands.
+     */
     public function handleModerationCommand($user, $type, $freeText) {
         switch (strtolower($type)) {
             case 'help':
@@ -585,12 +715,13 @@ class CommandHandler {
     }
     
     /**
-     * Handle encounter-specific API call for spawning NPCs
-     * Validates NPC type and makes REST API call to spawn encounters
-     * 
-     * @param string $user The user who triggered the encounter
-     * @param string $freeText The encounter description/request
-     * @return bool True if successful, false otherwise
+     * Processes an encounter command by validating the NPC type and triggering a spawn via a REST API call.
+     *
+     * Validates that the encounter description contains exactly one allowed NPC type, then makes a REST API request using PowerShell to spawn a random number (1-3) of that NPC. Returns true on success, or false if validation fails or the API call encounters an error.
+     *
+     * @param string $user The user who initiated the encounter command.
+     * @param string $freeText The encounter description or request text.
+     * @return bool True if the encounter was successfully spawned; false otherwise.
      */
     private function handleEncounterAPI($user, $freeText) {
         

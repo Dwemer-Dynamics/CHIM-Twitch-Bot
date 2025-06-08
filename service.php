@@ -73,7 +73,14 @@ $lists_flag_file = __DIR__ . '/lists_updated.flag';
 // Global variable for command handler
 $commandHandler = null;
 
-// Add this function at the top with other functions
+/**
+ * Masks OAuth tokens in the provided text to prevent exposure of sensitive information.
+ *
+ * Replaces any substring matching the pattern 'oauth:[a-z0-9]+' with 'oauth:********'.
+ *
+ * @param string $text The input text potentially containing OAuth tokens.
+ * @return string The text with OAuth tokens censored.
+ */
 function censorSensitiveInfo($text) {
     // Censor OAuth tokens
     $text = preg_replace('/oauth:[a-z0-9]+/', 'oauth:********', $text);
@@ -155,6 +162,17 @@ while (true) {
     }
 }
 
+/****
+ * Connects to Twitch IRC, authenticates, joins a channel, and processes chat messages in a loop.
+ *
+ * Establishes a non-blocking socket connection to the Twitch IRC server, performs authentication, and joins the specified channel. Initializes the CommandHandler to process incoming chat messages and commands. Handles PING/PONG keepalive, parses user messages with moderator and subscriber status, and delegates command parsing to the CommandHandler. Monitors connection health and exits on connection loss or inactivity.
+ *
+ * @param string $server   Twitch IRC server address.
+ * @param int    $port     IRC server port.
+ * @param string $username Bot's Twitch username.
+ * @param string $oauth    OAuth token for authentication.
+ * @param string $channel  Channel to join and monitor.
+ */
 function runBot($server, $port, $username, $oauth, $channel)
 {
     global $moderators, $followers;
@@ -284,6 +302,16 @@ function runBot($server, $port, $username, $oauth, $channel)
     }
 }
 
+/**
+ * Determines whether a user is permitted to execute bot commands based on blacklist, whitelist, moderator, and subscriber status.
+ *
+ * Evaluates user permissions according to the current configuration: blacklisted users (except the channel owner) are always blocked; channel owner and moderators are always allowed unless blacklisted; if whitelist mode is enabled, only whitelisted users (plus owner/mods) are allowed; mods-only and subs-only modes further restrict access as configured.
+ *
+ * @param string $user The username to check.
+ * @param bool $isMod Whether the user is a moderator.
+ * @param bool $isSub Whether the user is a subscriber.
+ * @return bool True if the user is allowed to use commands, false otherwise.
+ */
 function canUserUseCommands($user, $isMod = false, $isSub = false) {
     global $MODS_ONLY, $SUBS_ONLY, $WHITELIST_ENABLED;
     global $channel_owner;
@@ -336,7 +364,11 @@ function canUserUseCommands($user, $isMod = false, $isSub = false) {
 }
 
 
-// Example function to demonstrate permission checks
+/**
+ * Demonstrates user permission checks under various moderator and subscriber mode settings.
+ *
+ * Runs a series of test cases to display whether different user types are allowed to use commands based on the current permission modes.
+ */
 function testPermissions() {
     global $MODS_ONLY, $SUBS_ONLY;
     global $moderators, $subscribers, $channel_owner;
