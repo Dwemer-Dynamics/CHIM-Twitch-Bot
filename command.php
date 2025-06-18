@@ -70,10 +70,10 @@ class CommandHandler {
         
         // Command type settings
         $this->command_types_enabled = [
-            'instruction' => (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "0") === "1",
-            'suggestion' => (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "0") === "1",
-            'impersonation' => (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "0") === "1",
-            'spawn' => (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "0") === "1",
+            'instruction' => (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "1") === "1",
+            'suggestion' => (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "1") === "1",
+            'impersonation' => (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "1") === "1",
+            'spawn' => (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "1") === "1",
             'encounter' => (getenv("TBOT_ROLEMASTER_ENCOUNTER_ENABLED") ?: "0") === "1"
         ];
 
