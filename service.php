@@ -32,10 +32,10 @@ $WHITELIST_ENABLED = (getenv("TBOT_WHITELIST_ENABLED") ?: "0") === "1"; // Defau
 $COMMAND_PREFIX = getenv("TBOT_COMMAND_PREFIX") ?: "Rolemaster"; // Default to "Rolemaster" if not set
 
 // Add these with other environment variables at the top
-$ROLEMASTER_INSTRUCTION_ENABLED = (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "1") === "1"; // Default to true
-$ROLEMASTER_SUGGESTION_ENABLED = (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "1") === "1"; // Default to true
-$ROLEMASTER_IMPERSONATION_ENABLED = (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "1") === "1"; // Default to true
-$ROLEMASTER_SPAWN_ENABLED = (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "1") === "1"; // Default to true
+$ROLEMASTER_INSTRUCTION_ENABLED = (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED") ?: "0") === "1"; // Default to false
+$ROLEMASTER_SUGGESTION_ENABLED = (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "0") === "1"; // Default to false
+$ROLEMASTER_IMPERSONATION_ENABLED = (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "0") === "1"; // Default to false
+$ROLEMASTER_SPAWN_ENABLED = (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "0") === "1"; // Default to false
 $USE_COMMAND_PREFIX = (getenv("TBOT_USE_COMMAND_PREFIX") ?: "1") === "1"; // Default to true
 
 // Help keywords configuration

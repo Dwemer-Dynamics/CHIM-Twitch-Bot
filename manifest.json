@@ -4,7 +4,7 @@
     "config_url":"/HerikaServer/ext/CHIM-Twitch-Bot/index.php",
     "config_url_target": "_blank",
     "git_repo":"Dwemer-Dynamics/CHIM-Twitch-Bot",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "schema_version":2 
 
 }

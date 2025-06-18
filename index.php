@@ -7,6 +7,37 @@ $log_file =     __DIR__."/bot_output.log";      // Log file for bot output
 $env_file = __DIR__ . "/bot_env.json";
 $env_vars = file_exists($env_file) ? json_decode(file_get_contents($env_file), true) : [];
 
+// Initialize environment file with defaults if it doesn't exist
+if (!file_exists($env_file) || empty($env_vars)) {
+    $default_env_vars = [
+        'TBOT_COOLDOWN' => '30',
+        'TBOT_MODS_ONLY' => '0',
+        'TBOT_SUBS_ONLY' => '0', 
+        'TBOT_WHITELIST_ENABLED' => '0',
+        'TBOT_ROLEMASTER_INSTRUCTION_ENABLED' => '1',
+        'TBOT_ROLEMASTER_SUGGESTION_ENABLED' => '1',
+        'TBOT_ROLEMASTER_IMPERSONATION_ENABLED' => '1',
+        'TBOT_ROLEMASTER_SPAWN_ENABLED' => '1',
+        'TBOT_ROLEMASTER_ENCOUNTER_ENABLED' => '0',
+        'TBOT_USE_COMMAND_PREFIX' => '1',
+        'TBOT_COMMAND_PREFIX' => 'Rolemaster',
+        'TBOT_HELP_KEYWORDS' => 'help,ai,Rolemaster,rp',
+        'TBOT_COMMAND_NAME_MAP' => json_encode([
+            'instruction' => 'instruction',
+            'suggestion' => 'suggestion', 
+            'impersonation' => 'impersonation',
+            'spawn' => 'spawn',
+            'encounter' => 'encounter'
+        ])
+    ];
+    
+    // Merge with existing env vars (preserve connection settings if they exist)
+    $env_vars = array_merge($default_env_vars, $env_vars);
+    
+    // Save the initialized environment file
+    file_put_contents($env_file, json_encode($env_vars));
+}
+
 if (!file_exists( __DIR__."/vendor/autoload.php")) {
     error_log("Addon not installed.... installing");
     $install_command = "cd ". __DIR__." && HOME=".__DIR__."  composer install";
