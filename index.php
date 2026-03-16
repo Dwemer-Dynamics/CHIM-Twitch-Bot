@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $bot_script =   __DIR__."/service.php";      // Bot script path
 $pid_file =     __DIR__."/bot_pid.txt";         // File to store PID
 $log_file =     __DIR__."/bot_output.log";      // Log file for bot output
@@ -52,6 +52,26 @@ if (isset($_GET['fetch_logs'])) {
     $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : [];
     $log_content = array_reverse($log_content);
     echo json_encode(['logs' => $log_content]);
+    exit;
+}
+
+// Download full log file
+if (isset($_GET['download_log'])) {
+    if (!file_exists($log_file)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Log file not found.";
+        exit;
+    }
+
+    $downloadName = 'chim_twitch_bot_' . date('Ymd_His') . '.log';
+    header('Content-Description: File Transfer');
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $downloadName . '"');
+    header('Content-Length: ' . filesize($log_file));
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    readfile($log_file);
     exit;
 }
 
@@ -141,11 +161,13 @@ function is_bot_running($pid_file) {
 // Check if bot is running
 $is_running = is_bot_running($pid_file);
 $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; // Get last 15 lines
+header('Content-Type: text/html; charset=utf-8');
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>CHIM Twitch Bot Control</title>
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
     <link rel="stylesheet" href="main.css">
@@ -172,9 +194,9 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.innerHTML = `
-                <span class="toast-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                <span class="toast-icon">${type === 'success' ? '\u2705' : type === 'error' ? '\u274C' : type === 'warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F'}</span>
                 <span class="toast-message">${message}</span>
-                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+                <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
             `;
             toastContainer.appendChild(toast);
             
@@ -244,10 +266,10 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             // Update button text and settings group class
             if (isRunning) {
                 settingsGroup.classList.add('disabled'); // Add class for potential styling
-                saveButton.innerHTML = '⚠️ Stop bot to save new settings';
+                saveButton.innerHTML = '&#x26A0;&#xFE0F; Stop bot to save new settings';
             } else {
                 settingsGroup.classList.remove('disabled'); // Remove class
-                saveButton.innerHTML = '💾 Save Bot Controls';
+                saveButton.innerHTML = '&#x1F4BE; Save Bot Controls';
             }
 
             // Whitelist button state should *always* be enabled, regardless of bot state or toggle state
@@ -567,13 +589,13 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     <div class="page-grid">
         <div class="connection-settings">
             <div class="settings-header">
-                <h2>⚙️ Bot Controls</h2>
+                <h2>&#x2699;&#xFE0F; Bot Controls</h2>
                 <div class="header-buttons">
                     <button type="button" class="settings-button" onclick="showModal()" title="Configure Connection Settings" <?= $is_running ? 'disabled' : '' ?>>
                         Configure Connection Settings
                     </button>
                     <button type="button" class="help-button" onclick="showCommandsModal()" title="View Available Commands">
-                        📖 Available Commands
+                        &#x1F4D6; Available Commands
                     </button>
                 </div>
             </div>
@@ -609,14 +631,14 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                             <span class="toggle-label">Enable Allowed Users Only Mode</span>
                             <button type="button" class="list-action-btn" onclick="showListModal('whitelist')" 
                                     id="whitelist_btn" <?= ($env_vars['TBOT_WHITELIST_ENABLED'] ?? '0') === '0' ? 'disabled' : '' ?>>
-                                ✅ Manage Allowed Users
+                                &#x2705; Manage Allowed Users
                             </button>
                         </div>
 
                         <div class="toggle-container blacklist-container">
                             <button type="button" class="list-action-btn danger" onclick="showListModal('blacklist')" 
                                     id="blacklist_btn">
-                                ❌ Manage Blocked Users
+                                &#x274C; Manage Blocked Users
                             </button>
                         </div>
 
@@ -691,7 +713,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                         <?= ($env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">🎬 Instruction Command</span>
+                                <span class="toggle-label">&#x1F3AC; Instruction Command</span>
                             </div>
 
                             <div class="toggle-container">
@@ -700,7 +722,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                         <?= ($env_vars['TBOT_ROLEMASTER_SUGGESTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">🕒 Suggestion Command</span>
+                                <span class="toggle-label">&#x1F552; Suggestion Command</span>
                             </div>
 
                             <div class="toggle-container">
@@ -709,7 +731,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                         <?= ($env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">🗣️ Impersonation Command</span>
+                                <span class="toggle-label">&#x1F5E3;&#xFE0F; Impersonation Command</span>
                             </div>
 
                             <div class="toggle-container">
@@ -718,7 +740,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                         <?= ($env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">👥 Spawn Command</span>
+                                <span class="toggle-label">&#x1F465; Spawn Command</span>
                             </div>
 
                             <div class="toggle-container" style="display: none;">
@@ -727,7 +749,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                                         <?= ($env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">⚔️ Encounter Command</span>
+                                <span class="toggle-label">&#x2694;&#xFE0F; Encounter Command</span>
                             </div>
 
                             <!-- Cooldown Container MOVED inside here -->
@@ -744,7 +766,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     </div>
 
                     <button type="button" onclick="saveSettings()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
-                        <?= $is_running ? '⚠️ Stop bot to apply new settings' : '💾 Save Bot Controls' ?>
+                        <?= $is_running ? '&#x26A0;&#xFE0F; Stop bot to apply new settings' : '&#x1F4BE; Save Bot Controls' ?>
                     </button>
                 </div>
             </form>
@@ -755,8 +777,8 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
         <!-- Connection Settings Modal -->
         <div class="modal-overlay" id="settingsModal">
             <div class="modal">
-                <button class="modal-close" onclick="hideModal()">×</button>
-                <h2>⚙️ Connection Settings</h2>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+                <h2>&#x2699;&#xFE0F; Connection Settings</h2>
                 <form method="post" id="connection-form">
                     <div class="input-group">
                         <div class="input-container">
@@ -785,7 +807,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
                     </div>
 
                     <div class="button-group">
-                        <button type="submit" class="save-btn">💾 Save Connection Settings</button>
+                        <button type="submit" class="save-btn">&#x1F4BE; Save Connection Settings</button>
                         <button type="button" onclick="hideModal()">Cancel</button>
                     </div>
                 </form>
@@ -794,17 +816,18 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
 
         <div class="log-section">
             <h2 class="log-header">
-                <span>📜 Bot Output</span>
+                <span>&#x1F4DC; Bot Output</span>
                 <div class="header-controls">
                     <!-- Status MOVED here -->
-                    <p class="status">Status: <?= $is_running ? "🟢 Running" : "🔴 Stopped" ?></p>
+                    <p class="status">Status: <?= $is_running ? "&#x1F7E2; Running" : "&#x1F534; Stopped" ?></p>
                     <!-- Buttons MOVED here -->
                     <div class="button-group header-button-group">
                         <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?> small-action-btn" form="connection-form">
-                            <?= $is_running ? '⏹ Stop Bot' : '▶️ Start Bot' ?>
+                            <?= $is_running ? '&#x23F9; Stop Bot' : '&#x25B6;&#xFE0F; Start Bot' ?>
                         </button>
                     </div>
-                    <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" onclick="updateLogs(); return false;">🔄 Refresh</button>
+                    <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" onclick="updateLogs(); return false;">&#x1F504; Refresh</button>
+                    <button type="button" class="refresh-btn" onclick="window.location.href='index.php?download_log=1'" title="Download full bot log">&#x1F4E5; Download Log</button>
                  </div>
             </h2>
             <div class="log-box">
@@ -821,7 +844,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
             <!-- Local Testing Interface -->
             <div class="test-section">
                 <div class="test-header">
-                    <h2>🧪 Test Commands (Only action commands)</h2>
+                    <h2>&#x1F9EA; Test Commands (Only action commands)</h2>
                 </div>
                 <div class="test-interface">
                     <div class="test-input-group">
@@ -843,34 +866,34 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     <!-- Commands Modal -->
     <div class="modal-overlay" id="commandsModal">
         <div class="modal">
-            <button class="modal-close" onclick="hideCommandsModal()">×</button>
-            <h2>📖 Available Commands</h2>
+            <button class="modal-close" onclick="hideCommandsModal()">&times;</button>
+            <h2>&#x1F4D6; Available Commands</h2>
             <div class="commands-list">
                 <h3 class="commands-section-title">Rolemaster Commands</h3>
                 <div class="command-card">
-                    <h3>🎬 Rolemaster:instruction:</h3>
+                    <h3>&#x1F3AC; Rolemaster:instruction:</h3>
                     <p class="command-description"><i>Will <b>immediately</b> prompt an AI NPC in the vicinity to follow your commands to the best of their ability.</i></p>
                     <p class="command-example">Rolemaster:instruction: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
-                    <h3>🕒 Rolemaster:suggestion:</h3>
+                    <h3>&#x1F552; Rolemaster:suggestion:</h3>
                     <p class="command-description"><i>Will <b>queue</b> a prompt for an AI NPC in the vicinity to follow your commands to the best of their ability once the current scene playing has ended.</i></p>
                     <p class="command-example">Rolemaster:suggestion: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
-                    <h3>🗣️ Rolemaster:impersonation:</h3>
+                    <h3>&#x1F5E3;&#xFE0F; Rolemaster:impersonation:</h3>
                     <p class="command-description"><i>The player character will repeat whatever is entered by chat. You may want to be careful with this one...</i></p>
                     <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
                 </div>
 
                 <div class="command-card">
-                    <h3>👥 Rolemaster:spawn:</h3>
+                    <h3>&#x1F465; Rolemaster:spawn:</h3>
                     <p class="command-description"><i>Spawns a new character based on the provided description.</i></p>
                     <p class="command-example">Rolemaster:spawn: A tall Nord warrior wearing steel armor</p>
                 </div>
 
                 <div class="command-card" style="display: none;">
-                    <h3>⚔️ Rolemaster:encounter:</h3>
+                    <h3>&#x2694;&#xFE0F; Rolemaster:encounter:</h3>
                     <p class="command-description"><i>Creates a random encounter or event in the current location.</i></p>
                     <p class="command-example">Rolemaster:encounter: A group of bandits ambush the party</p>
                 </div>
@@ -931,7 +954,7 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     <!-- User List Management Modal -->
     <div class="modal-overlay" id="listModal">
         <div class="modal">
-            <button class="modal-close" onclick="hideListModal()">×</button>
+            <button class="modal-close" onclick="hideListModal()">&times;</button>
             <h2 id="listModalTitle">Manage List</h2>
             
             <div class="list-management">
@@ -1082,3 +1105,4 @@ $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; 
     </script>
 </body>
 </html>
+
