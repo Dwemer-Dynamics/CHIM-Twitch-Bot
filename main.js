@@ -106,77 +106,95 @@ document.addEventListener('DOMContentLoaded', function() {
     testButton = document.querySelector('.test-button');
 
     // Add enter key support for test command input
-    testCommandInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            testCommand();
-        }
-    });
+    if (testCommandInput) {
+        testCommandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                testCommand();
+            }
+        });
+    }
 
     // Clear results when starting to type a new command
-    testCommandInput.addEventListener('input', function() {
-        if (this.value.trim() === '') {
-            testResults.innerHTML = '';
-        }
-    });
+    if (testCommandInput && testResults) {
+        testCommandInput.addEventListener('input', function() {
+            if (this.value.trim() === '') {
+                testResults.innerHTML = '';
+            }
+        });
+    }
 
     // Modal controls
-    openModalBtn.onclick = function() {
-        showModal();
+    if (openModalBtn) {
+        openModalBtn.onclick = function() {
+            showModal();
+        };
     }
 
-    closeModalBtn.onclick = function() {
-        hideModal();
-    }
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) {
+    if (closeModalBtn) {
+        closeModalBtn.onclick = function() {
             hideModal();
-        }
-    });
+        };
+    }
+
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideModal();
+            }
+        });
+    }
 
     // Handle connection settings form submission
-    connectionForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const username = document.getElementById('username').value;
-        const oauth = document.getElementById('oauth').value;
-        const channel = document.getElementById('channel').value;
+    if (connectionForm) {
+        connectionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const usernameEl = document.getElementById('username');
+            const oauthEl = document.getElementById('oauth');
+            const channelEl = document.getElementById('channel');
+            const username = usernameEl ? usernameEl.value : '';
+            const oauth = oauthEl ? oauthEl.value : '';
+            const channel = channelEl ? channelEl.value : '';
 
-        if (!username || !oauth || !channel) {
-            showToast('Please fill in all connection fields', 'error');
-            return;
-        }
-
-        fetch('save_connection_settings.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: username,
-                token: oauth,
-                channel: channel
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Connection settings saved successfully', 'success');
-                hideModal();
+            if (!username || !oauth || !channel) {
+                showToast('Please fill in all connection fields', 'error');
+                return;
             } else {
-                showToast('Failed to save connection settings: ' + data.error, 'error');
+                fetch('save_connection_settings.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        token: oauth,
+                        channel: channel
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Connection settings saved successfully', 'success');
+                        hideModal();
+                    } else {
+                        showToast('Failed to save connection settings: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Error saving connection settings: ' + error, 'error');
+                });
             }
-        })
-        .catch(error => {
-            showToast('Error saving connection settings: ' + error, 'error');
         });
-    });
+    }
 
     // Load initial settings
     loadSettings();
 
     function showStatus(message, type = 'info') {
+        if (!statusElement) {
+            return;
+        }
         statusElement.textContent = message;
         statusElement.className = 'status ' + type;
         setTimeout(() => {
@@ -186,11 +204,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showModal() {
-        modal.classList.add('show');
+        if (modal) {
+            modal.classList.add('show');
+        }
     }
 
     function hideModal() {
-        modal.classList.remove('show');
+        if (modal) {
+            modal.classList.remove('show');
+        }
     }
 });
 
@@ -203,46 +225,45 @@ function saveSettings() {
     const rolemasterSuggestion = document.getElementById('rolemaster_suggestion').checked;
     const rolemasterImpersonation = document.getElementById('rolemaster_impersonation').checked;
     const rolemasterSpawn = document.getElementById('rolemaster_spawn').checked;
+    const rolemasterCheat = document.getElementById('rolemaster_cheat').checked;
             // Encounter command is disabled
         // const rolemasterEncounter = document.getElementById('rolemaster_encounter').checked;
-    const useCommandPrefix = document.getElementById('use_command_prefix').checked;
-    const commandPrefix = document.getElementById('command_prefix').value.replace(/[^a-zA-Z0-9]/g, '');
     const helpKeywords = document.getElementById('help_keywords').value;
 
-    // Get command name map values
-    const cmd_instruction = document.getElementById('cmd_instruction').value.replace(/[^a-zA-Z0-9]/g, '');
-    const cmd_suggestion = document.getElementById('cmd_suggestion').value.replace(/[^a-zA-Z0-9]/g, '');
-    const cmd_impersonation = document.getElementById('cmd_impersonation').value.replace(/[^a-zA-Z0-9]/g, '');
-    const cmd_spawn = document.getElementById('cmd_spawn').value.replace(/[^a-zA-Z0-9]/g, '');
-            // Encounter command is disabled
-        // const cmd_encounter = document.getElementById('cmd_encounter').value.replace(/[^a-zA-Z0-9]/g, '');
+    // Command name fields are optional in current UI. Only send when present.
+    const cmdInstructionEl = document.getElementById('cmd_instruction');
+    const cmdSuggestionEl = document.getElementById('cmd_suggestion');
+    const cmdImpersonationEl = document.getElementById('cmd_impersonation');
+    const cmdSpawnEl = document.getElementById('cmd_spawn');
+    const cmdCheatEl = document.getElementById('cmd_cheat');
+
+    const payload = {
+        cooldown: cooldown,
+        modsOnly: modsOnly,
+        subsOnly: subsOnly,
+        whitelistEnabled: whitelistEnabled,
+        rolemasterInstruction: rolemasterInstruction,
+        rolemasterSuggestion: rolemasterSuggestion,
+        rolemasterImpersonation: rolemasterImpersonation,
+        rolemasterSpawn: rolemasterSpawn,
+        rolemasterCheat: rolemasterCheat,
+        // Encounter command is disabled
+        // rolemasterEncounter: rolemasterEncounter,
+        helpKeywords: helpKeywords
+    };
+
+    if (cmdInstructionEl) payload.cmd_instruction = cmdInstructionEl.value.replace(/[^a-zA-Z0-9]/g, '');
+    if (cmdSuggestionEl) payload.cmd_suggestion = cmdSuggestionEl.value.replace(/[^a-zA-Z0-9]/g, '');
+    if (cmdImpersonationEl) payload.cmd_impersonation = cmdImpersonationEl.value.replace(/[^a-zA-Z0-9]/g, '');
+    if (cmdSpawnEl) payload.cmd_spawn = cmdSpawnEl.value.replace(/[^a-zA-Z0-9]/g, '');
+    if (cmdCheatEl) payload.cmd_cheat = cmdCheatEl.value.replace(/[^a-zA-Z0-9]/g, '');
 
     fetch('update_bot_settings.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            cooldown: cooldown,
-            modsOnly: modsOnly,
-            subsOnly: subsOnly,
-            whitelistEnabled: whitelistEnabled,
-            rolemasterInstruction: rolemasterInstruction,
-            rolemasterSuggestion: rolemasterSuggestion,
-            rolemasterImpersonation: rolemasterImpersonation,
-            rolemasterSpawn: rolemasterSpawn,
-            // Encounter command is disabled
-            // rolemasterEncounter: rolemasterEncounter,
-            useCommandPrefix: useCommandPrefix,
-            commandPrefix: commandPrefix,
-            helpKeywords: helpKeywords,
-            cmd_instruction: cmd_instruction,
-            cmd_suggestion: cmd_suggestion,
-            cmd_impersonation: cmd_impersonation,
-            cmd_spawn: cmd_spawn,
-            // Encounter command is disabled
-            // cmd_encounter: cmd_encounter
-        })
+        body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(data => {
@@ -275,19 +296,24 @@ function loadSettings() {
                 document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction ?? true;
                 document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion ?? true;
                 document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation ?? true;
-                document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? true;
+                document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? false;
+                document.getElementById('rolemaster_cheat').checked = data.settings.rolemasterCheat ?? false;
                 // Encounter command is disabled
         // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter ?? true;
-                document.getElementById('use_command_prefix').checked = data.settings.useCommandPrefix ?? true;
-                document.getElementById('command_prefix').value = data.settings.commandPrefix ?? 'Rolemaster';
                 document.getElementById('help_keywords').value = data.settings.helpKeywords ?? 'help,ai,Rolemaster,rp';
 
-                // Update command name map inputs
+                // Update command name map inputs (if this UI section is present)
                 if (data.settings.commandNameMap) {
-                    document.getElementById('cmd_instruction').value = data.settings.commandNameMap.instruction ?? 'instruction';
-                    document.getElementById('cmd_suggestion').value = data.settings.commandNameMap.suggestion ?? 'suggestion';
-                    document.getElementById('cmd_impersonation').value = data.settings.commandNameMap.impersonation ?? 'impersonation';
-                    document.getElementById('cmd_spawn').value = data.settings.commandNameMap.spawn ?? 'spawn';
+                    const cmdInstructionEl = document.getElementById('cmd_instruction');
+                    const cmdSuggestionEl = document.getElementById('cmd_suggestion');
+                    const cmdImpersonationEl = document.getElementById('cmd_impersonation');
+                    const cmdSpawnEl = document.getElementById('cmd_spawn');
+                    const cmdCheatEl = document.getElementById('cmd_cheat');
+                    if (cmdInstructionEl) cmdInstructionEl.value = data.settings.commandNameMap.instruction ?? 'director';
+                    if (cmdSuggestionEl) cmdSuggestionEl.value = data.settings.commandNameMap.suggestion ?? 'suggestion';
+                    if (cmdImpersonationEl) cmdImpersonationEl.value = data.settings.commandNameMap.impersonation ?? 'impersonation';
+                    if (cmdSpawnEl) cmdSpawnEl.value = data.settings.commandNameMap.spawn ?? 'spawn';
+                    if (cmdCheatEl) cmdCheatEl.value = data.settings.commandNameMap.cheat ?? 'cheat';
                     // Encounter command is disabled
         // document.getElementById('cmd_encounter').value = data.settings.commandNameMap.encounter ?? 'encounter';
                 }

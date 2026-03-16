@@ -13,16 +13,16 @@ $defaultSettings = [
     'rolemasterInstruction' => true,
     'rolemasterSuggestion' => true,
     'rolemasterImpersonation' => true,
-    'rolemasterSpawn' => true,
+    'rolemasterSpawn' => false,
+    'rolemasterCheat' => false,
     'rolemasterEncounter' => false,
-    'useCommandPrefix' => true,
-    'commandPrefix' => 'Rolemaster',
     'helpKeywords' => 'help,ai,Rolemaster,rp',
     'commandNameMap' => [
-        'instruction' => 'instruction',
+        'instruction' => 'director',
         'suggestion' => 'suggestion',
         'impersonation' => 'impersonation',
         'spawn' => 'spawn',
+        'cheat' => 'cheat',
         'encounter' => 'encounter'
     ]
 ];
@@ -50,13 +50,16 @@ if (file_exists($env_file)) {
     if (isset($env_vars['TBOT_ROLEMASTER_SUGGESTION_ENABLED'])) $settings['rolemasterSuggestion'] = $env_vars['TBOT_ROLEMASTER_SUGGESTION_ENABLED'] === "1";
     if (isset($env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'])) $settings['rolemasterImpersonation'] = $env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'] === "1";
     if (isset($env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'])) $settings['rolemasterSpawn'] = $env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] === "1";
+    if (isset($env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'])) $settings['rolemasterCheat'] = $env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] === "1";
     if (isset($env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'])) $settings['rolemasterEncounter'] = $env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] === "1";
-    if (isset($env_vars['TBOT_USE_COMMAND_PREFIX'])) $settings['useCommandPrefix'] = $env_vars['TBOT_USE_COMMAND_PREFIX'] === "1";
-    if (isset($env_vars['TBOT_COMMAND_PREFIX'])) $settings['commandPrefix'] = $env_vars['TBOT_COMMAND_PREFIX'];
     if (isset($env_vars['TBOT_HELP_KEYWORDS'])) $settings['helpKeywords'] = $env_vars['TBOT_HELP_KEYWORDS'];
     if (isset($env_vars['TBOT_COMMAND_NAME_MAP'])) {
         $commandMap = json_decode($env_vars['TBOT_COMMAND_NAME_MAP'], true);
         if (is_array($commandMap)) {
+            $instructionAlias = strtolower(trim((string)($commandMap['instruction'] ?? '')));
+            if ($instructionAlias === '' || $instructionAlias === 'instruction') {
+                $commandMap['instruction'] = 'director';
+            }
             $settings['commandNameMap'] = $commandMap;
         }
     }

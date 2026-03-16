@@ -17,16 +17,18 @@ if (!file_exists($env_file) || empty($env_vars)) {
         'TBOT_ROLEMASTER_INSTRUCTION_ENABLED' => '1',
         'TBOT_ROLEMASTER_SUGGESTION_ENABLED' => '1',
         'TBOT_ROLEMASTER_IMPERSONATION_ENABLED' => '1',
-        'TBOT_ROLEMASTER_SPAWN_ENABLED' => '1',
+        'TBOT_ROLEMASTER_SPAWN_ENABLED' => '0',
+        'TBOT_ROLEMASTER_CHEAT_ENABLED' => '0',
         'TBOT_ROLEMASTER_ENCOUNTER_ENABLED' => '0',
-        'TBOT_USE_COMMAND_PREFIX' => '1',
+        'TBOT_USE_COMMAND_PREFIX' => '0',
         'TBOT_COMMAND_PREFIX' => 'Rolemaster',
         'TBOT_HELP_KEYWORDS' => 'help,ai,Rolemaster,rp',
         'TBOT_COMMAND_NAME_MAP' => json_encode([
-            'instruction' => 'instruction',
+            'instruction' => 'director',
             'suggestion' => 'suggestion', 
             'impersonation' => 'impersonation',
             'spawn' => 'spawn',
+            'cheat' => 'cheat',
             'encounter' => 'encounter'
         ])
     ];
@@ -233,6 +235,7 @@ header('Content-Type: text/html; charset=utf-8');
             const rolemasterSuggestionToggle = document.getElementById('rolemaster_suggestion');
             const rolemasterImpersonationToggle = document.getElementById('rolemaster_impersonation');
             const rolemasterSpawnToggle = document.getElementById('rolemaster_spawn');
+            const rolemasterCheatToggle = document.getElementById('rolemaster_cheat');
             const rolemasterEncounterToggle = document.getElementById('rolemaster_encounter');
             const saveButton = document.querySelector('.save-controls-btn');
             const settingsGroup = document.querySelector('.settings-group');
@@ -251,6 +254,7 @@ header('Content-Type: text/html; charset=utf-8');
                 rolemasterSuggestionToggle,
                 rolemasterImpersonationToggle,
                 rolemasterSpawnToggle,
+                rolemasterCheatToggle,
                 rolemasterEncounterToggle,
                 saveButton,
                 configureButton
@@ -292,8 +296,8 @@ header('Content-Type: text/html; charset=utf-8');
             const rolemasterSuggestion = document.getElementById('rolemaster_suggestion').checked;
             const rolemasterImpersonation = document.getElementById('rolemaster_impersonation').checked;
             const rolemasterSpawn = document.getElementById('rolemaster_spawn').checked;
+            const rolemasterCheat = document.getElementById('rolemaster_cheat').checked;
             const rolemasterEncounter = document.getElementById('rolemaster_encounter').checked;
-            const commandPrefix = document.getElementById('command_prefix').value.replace(/[^a-zA-Z0-9]/g, '');
 
             fetch('update_bot_settings.php', {
                 method: 'POST',
@@ -309,8 +313,8 @@ header('Content-Type: text/html; charset=utf-8');
                     rolemasterSuggestion: rolemasterSuggestion,
                     rolemasterImpersonation: rolemasterImpersonation,
                     rolemasterSpawn: rolemasterSpawn,
-                    rolemasterEncounter: rolemasterEncounter,
-                    commandPrefix: commandPrefix
+                    rolemasterCheat: rolemasterCheat,
+                    rolemasterEncounter: rolemasterEncounter
                 })
             })
             .then(response => response.json())
@@ -325,9 +329,9 @@ header('Content-Type: text/html; charset=utf-8');
                     document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion;
                     document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation;
                     document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn;
+                    document.getElementById('rolemaster_cheat').checked = data.settings.rolemasterCheat;
                     // Encounter command is disabled
         // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter;
-                    document.getElementById('command_prefix').value = data.settings.commandPrefix ?? 'Rolemaster';
                     
                     // Update button states
                     document.getElementById('whitelist_btn').disabled = !data.settings.whitelistEnabled;
@@ -360,10 +364,10 @@ header('Content-Type: text/html; charset=utf-8');
                         document.getElementById('rolemaster_instruction').checked = data.settings.rolemasterInstruction ?? true;
                         document.getElementById('rolemaster_suggestion').checked = data.settings.rolemasterSuggestion ?? true;
                         document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation ?? true;
-                        document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? true;
+                        document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? false;
+                        document.getElementById('rolemaster_cheat').checked = data.settings.rolemasterCheat ?? false;
                         // Encounter command is disabled
         // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter ?? true;
-                        document.getElementById('command_prefix').value = data.settings.commandPrefix ?? 'Rolemaster';
                         
                         // Update button states
                         document.getElementById('whitelist_btn').disabled = !(data.settings.whitelistEnabled ?? false);
@@ -381,10 +385,10 @@ header('Content-Type: text/html; charset=utf-8');
                         document.getElementById('rolemaster_instruction').checked = true;
                         document.getElementById('rolemaster_suggestion').checked = true;
                         document.getElementById('rolemaster_impersonation').checked = true;
-                        document.getElementById('rolemaster_spawn').checked = true;
+                        document.getElementById('rolemaster_spawn').checked = false;
+                        document.getElementById('rolemaster_cheat').checked = false;
                         // Encounter command is disabled
                         // document.getElementById('rolemaster_encounter').checked = true;
-                        document.getElementById('command_prefix').value = 'Rolemaster';
                         document.getElementById('whitelist_btn').disabled = true; // Disabled if settings fail to load
                     }
                 })
@@ -403,10 +407,10 @@ header('Content-Type: text/html; charset=utf-8');
                     document.getElementById('rolemaster_instruction').checked = true;
                     document.getElementById('rolemaster_suggestion').checked = true;
                     document.getElementById('rolemaster_impersonation').checked = true;
-                    document.getElementById('rolemaster_spawn').checked = true;
+                    document.getElementById('rolemaster_spawn').checked = false;
+                    document.getElementById('rolemaster_cheat').checked = false;
                     // Encounter command is disabled
                     // document.getElementById('rolemaster_encounter').checked = true;
-                    document.getElementById('command_prefix').value = 'Rolemaster';
                     document.getElementById('whitelist_btn').disabled = true; // Disabled on error
                 });
         }
@@ -504,26 +508,12 @@ header('Content-Type: text/html; charset=utf-8');
 
         // Add this function to update the test command placeholder
         function updateTestCommandPlaceholder() {
-            const usePrefix = document.getElementById('use_command_prefix').checked;
-            const prefix = document.getElementById('command_prefix').value || 'Rolemaster';
             const testInput = document.getElementById('test-command');
-            
-            if (usePrefix) {
-                testInput.placeholder = `${prefix}:instruction: Make Mikael tell a story`;
-            } else {
-                testInput.placeholder = "instruction: Make Mikael tell a story";
-            }
+            testInput.placeholder = "director: Make Mikael tell a story";
         }
 
-        // Add event listeners for both the toggle and prefix input
+        // Keep placeholder aligned with the prefixless command system.
         document.addEventListener('DOMContentLoaded', function() {
-            const prefixToggle = document.getElementById('use_command_prefix');
-            const prefixInput = document.getElementById('command_prefix');
-            
-            prefixToggle.addEventListener('change', updateTestCommandPlaceholder);
-            prefixInput.addEventListener('input', updateTestCommandPlaceholder);
-            
-            // Initial update
             updateTestCommandPlaceholder();
         });
     </script>
@@ -551,34 +541,27 @@ header('Content-Type: text/html; charset=utf-8');
             font-size: 0.9em;
         }
 
-        .command-prefix-container {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
+        .command-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
         }
 
-        .command-prefix-container label {
-            display: block;
+        .copy-command-btn {
+            border: 1px solid #4a4a4a;
+            background: #222;
             color: #fff;
-            margin-bottom: 5px;
-        }
-
-        .command-prefix-container input {
-            padding: 5px 10px;
-            border: 1px solid #444;
             border-radius: 4px;
-            background-color: #222;
-            color: #fff;
-            font-size: 14px;
-            width: 100px;
+            padding: 1px 5px;
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 1;
+            min-height: 18px;
         }
 
-        .command-prefix-container .input-description {
-            display: block;
-            color: #888;
-            font-size: 0.8em;
-            margin-top: 5px;
+        .copy-command-btn:hover {
+            background: #2d2d2d;
         }
     </style>
 </head>
@@ -645,41 +628,29 @@ header('Content-Type: text/html; charset=utf-8');
                         <!-- Add Rolemaster Command Settings -->
                         <div class="rolemaster-commands-section">
                             <h3>Rolemaster Commands</h3>
-                            <div class="toggle-container">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="use_command_prefix" name="tbot_use_command_prefix" 
-                                        <?= ($env_vars['TBOT_USE_COMMAND_PREFIX'] ?? '1') === '1' ? 'checked' : '' ?>>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                                <span class="toggle-label">Require Command Prefix</span>
-                            </div>
-
-                            <div class="command-prefix-container">
-                                <label for="command_prefix">Command Prefix:</label>
-                                <input type="text" id="command_prefix" name="command_prefix" 
-                                    value="<?= htmlspecialchars($env_vars['TBOT_COMMAND_PREFIX'] ?? 'Rolemaster') ?>"
-                                    pattern="[a-zA-Z0-9]+" maxlength="10"
-                                    title="Only letters and numbers allowed">
-                                <span class="input-description">Only letters and numbers (e.g. 'Rolemaster' or 'rp')</span>
-                            </div>
-
                             <div class="command-names-container">
                                 <h3>Command Names</h3>
                                 <p class="input-description">Customize how commands appear to users in your channel</p>
                                 <?php
                                 $command_map = json_decode($env_vars['TBOT_COMMAND_NAME_MAP'] ?? '{}', true) ?: [
-                                    'instruction' => 'instruction',
+                                    'instruction' => 'director',
                                     'suggestion' => 'suggestion',
                                     'impersonation' => 'impersonation',
                                     'spawn' => 'spawn',
+                                    'cheat' => 'cheat',
                                     'encounter' => 'encounter'
                                 ];
+                                $instructionAlias = strtolower(trim((string)($command_map['instruction'] ?? '')));
+                                if ($instructionAlias === '' || $instructionAlias === 'instruction') {
+                                    $command_map['instruction'] = 'director';
+                                }
                                 
                                 $command_descriptions = [
                                     'instruction' => 'Coordinate a scene involving multiple NPCs (up to 2-3)',
-                                    'suggestion' => 'Suggestions for NPCs to consider',
+                                    'suggestion' => 'Action for an NPC to consider',
                                     'impersonation' => 'Dialogue for the player character',
                                     'spawn' => 'Describe a new character to spawn',
+                                    'cheat' => 'Force an NPC to do something no matter the roleplay context',
                                     'encounter' => 'Create an enemy encounter'
                                 ];
                                 
@@ -713,7 +684,7 @@ header('Content-Type: text/html; charset=utf-8');
                                         <?= ($env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="toggle-label">&#x1F3AC; Instruction Command</span>
+                                <span class="toggle-label">&#x1F3AC; Director Command</span>
                             </div>
 
                             <div class="toggle-container">
@@ -737,10 +708,19 @@ header('Content-Type: text/html; charset=utf-8');
                             <div class="toggle-container">
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="rolemaster_spawn" name="tbot_rolemaster_spawn_enabled" 
-                                        <?= ($env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                        <?= ($env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
                                 <span class="toggle-label">&#x1F465; Spawn Command</span>
+                            </div>
+
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="rolemaster_cheat" name="tbot_rolemaster_cheat_enabled" 
+                                        <?= ($env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">&#x1F608; Cheat Command</span>
                             </div>
 
                             <div class="toggle-container" style="display: none;">
@@ -765,7 +745,7 @@ header('Content-Type: text/html; charset=utf-8');
                         </div>
                     </div>
 
-                    <button type="button" onclick="saveSettings()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
+                    <button type="button" onclick="saveBotControls()" class="save-controls-btn" <?= $is_running ? 'disabled' : '' ?>>
                         <?= $is_running ? '&#x26A0;&#xFE0F; Stop bot to apply new settings' : '&#x1F4BE; Save Bot Controls' ?>
                     </button>
                 </div>
@@ -871,43 +851,49 @@ header('Content-Type: text/html; charset=utf-8');
             <div class="commands-list">
                 <h3 class="commands-section-title">Rolemaster Commands</h3>
                 <div class="command-card">
-                    <h3>&#x1F3AC; Rolemaster:instruction:</h3>
+                    <h3 class="command-title">director:<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('director:')" title="Copy command prefix" aria-label="Copy director prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>Will <b>immediately</b> prompt an AI NPC in the vicinity to follow your commands to the best of their ability.</i></p>
-                    <p class="command-example">Rolemaster:instruction: Make Mikael tell a story.</p>
+                    <p class="command-example">director: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
-                    <h3>&#x1F552; Rolemaster:suggestion:</h3>
+                    <h3 class="command-title">suggestion:<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('suggestion:')" title="Copy command prefix" aria-label="Copy suggestion prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>Will <b>queue</b> a prompt for an AI NPC in the vicinity to follow your commands to the best of their ability once the current scene playing has ended.</i></p>
-                    <p class="command-example">Rolemaster:suggestion: Make Mikael tell a story.</p>
+                    <p class="command-example">suggestion: Make Mikael tell a story.</p>
                 </div>
                 <div class="command-card">
-                    <h3>&#x1F5E3;&#xFE0F; Rolemaster:impersonation:</h3>
+                    <h3 class="command-title">impersonation:<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('impersonation:')" title="Copy command prefix" aria-label="Copy impersonation prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>The player character will repeat whatever is entered by chat. You may want to be careful with this one...</i></p>
-                    <p class="command-example">Rolemaster:impersonation: Why did the chicken cross the road?</p>
+                    <p class="command-example">impersonation: Why did the chicken cross the road?</p>
                 </div>
 
                 <div class="command-card">
-                    <h3>&#x1F465; Rolemaster:spawn:</h3>
+                    <h3 class="command-title">&#x1F608; cheat:<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('cheat:')" title="Copy command prefix" aria-label="Copy cheat prefix">&#x2398;</button></h3>
+                    <p class="command-description"><i>Force an NPC to do something no matter the roleplay context.</i></p>
+                    <p class="command-example">cheat: kill the chicken</p>
+                </div>
+
+                <div class="command-card">
+                    <h3 class="command-title">spawn:<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('spawn:')" title="Copy command prefix" aria-label="Copy spawn prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>Spawns a new character based on the provided description.</i></p>
-                    <p class="command-example">Rolemaster:spawn: A tall Nord warrior wearing steel armor</p>
+                    <p class="command-example">spawn: A tall Nord warrior wearing steel armor</p>
                 </div>
 
                 <div class="command-card" style="display: none;">
-                    <h3>&#x2694;&#xFE0F; Rolemaster:encounter:</h3>
+                    <h3 class="command-title">encounter:<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('encounter:')" title="Copy command prefix" aria-label="Copy encounter prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>Creates a random encounter or event in the current location.</i></p>
-                    <p class="command-example">Rolemaster:encounter: A group of bandits ambush the party</p>
+                    <p class="command-example">encounter: A group of bandits ambush the party</p>
                 </div>
 
                 <h3 class="commands-section-title">Moderation Commands</h3>
                 <div class="command-card moderator-command">
-                    <h3>Moderation:help:</h3>
+                    <h3 class="command-title">chim:help<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('chim:help')" title="Copy command prefix" aria-label="Copy moderation help prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>Lists all available commands in the Twitch chat. <b>[Moderators & Channel Owner Only]</b></i></p>
-                    <p class="command-example">Moderation:help:</p>
+                    <p class="command-example">chim:help</p>
                 </div>
                 <div class="command-card moderator-command">
-                    <h3>Moderation:permissions:</h3>
+                    <h3 class="command-title">chim:permissions<button type="button" class="copy-command-btn" onclick="copyCommandPrefix('chim:permissions')" title="Copy command prefix" aria-label="Copy moderation permissions prefix">&#x2398;</button></h3>
                     <p class="command-description"><i>Shows current permission settings including cooldown, mods-only, subs-only, and list modes. <b>[Moderators & Channel Owner Only]</b></i></p>
-                    <p class="command-example">Moderation:permissions:</p>
+                    <p class="command-example">chim:permissions</p>
                 </div>
             </div>
         </div>
@@ -935,6 +921,34 @@ header('Content-Type: text/html; charset=utf-8');
         });
 
         // Add these functions for the commands modal
+        function copyCommandPrefix(commandText) {
+            if (!commandText) {
+                showToast('Unable to copy command', 'error');
+                return;
+            }
+
+            const copyFallback = () => {
+                const temp = document.createElement('textarea');
+                temp.value = commandText;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(commandText)
+                    .then(() => showToast('Command copied', 'success'))
+                    .catch(() => {
+                        copyFallback();
+                        showToast('Command copied', 'success');
+                    });
+            } else {
+                copyFallback();
+                showToast('Command copied', 'success');
+            }
+        }
+
         function showCommandsModal() {
             document.getElementById('commandsModal').classList.add('show');
         }

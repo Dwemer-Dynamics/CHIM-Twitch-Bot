@@ -36,7 +36,8 @@ $ROLEMASTER_INSTRUCTION_ENABLED = (getenv("TBOT_ROLEMASTER_INSTRUCTION_ENABLED")
 $ROLEMASTER_SUGGESTION_ENABLED = (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "0") === "1"; // Default to false
 $ROLEMASTER_IMPERSONATION_ENABLED = (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "0") === "1"; // Default to false
 $ROLEMASTER_SPAWN_ENABLED = (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "0") === "1"; // Default to false
-$USE_COMMAND_PREFIX = (getenv("TBOT_USE_COMMAND_PREFIX") ?: "1") === "1"; // Default to true
+$ROLEMASTER_CHEAT_ENABLED = (getenv("TBOT_ROLEMASTER_CHEAT_ENABLED") ?: "0") === "1"; // Default to false
+$USE_COMMAND_PREFIX = (getenv("TBOT_USE_COMMAND_PREFIX") ?: "0") === "1"; // Default to false
 
 // Help keywords configuration
 $HELP_KEYWORDS = array_filter(explode(',', getenv("TBOT_HELP_KEYWORDS") ?: "help,ai,Rolemaster,rp"));
@@ -95,6 +96,7 @@ ROLEMASTER COMMANDS:
   - Suggestion: " . ($ROLEMASTER_SUGGESTION_ENABLED ? "Yes" : "No") . "
   - Impersonation: " . ($ROLEMASTER_IMPERSONATION_ENABLED ? "Yes" : "No") . "
   - Spawn: " . ($ROLEMASTER_SPAWN_ENABLED ? "Yes" : "No") . "
+  - Cheat: " . ($ROLEMASTER_CHEAT_ENABLED ? "Yes" : "No") . "
 " . PHP_EOL;
 
 $child_pid = null;

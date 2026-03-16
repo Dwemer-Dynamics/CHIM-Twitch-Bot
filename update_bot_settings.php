@@ -12,29 +12,53 @@ $whitelistEnabled = isset($data['whitelistEnabled']) ? $data['whitelistEnabled']
 $rolemasterInstruction = isset($data['rolemasterInstruction']) ? $data['rolemasterInstruction'] : true;
 $rolemasterSuggestion = isset($data['rolemasterSuggestion']) ? $data['rolemasterSuggestion'] : true;
 $rolemasterImpersonation = isset($data['rolemasterImpersonation']) ? $data['rolemasterImpersonation'] : true;
-$rolemasterSpawn = isset($data['rolemasterSpawn']) ? $data['rolemasterSpawn'] : true;
+$rolemasterSpawn = isset($data['rolemasterSpawn']) ? $data['rolemasterSpawn'] : false;
+$rolemasterCheat = isset($data['rolemasterCheat']) ? $data['rolemasterCheat'] : false;
 $rolemasterEncounter = isset($data['rolemasterEncounter']) ? $data['rolemasterEncounter'] : false;
-$useCommandPrefix = isset($data['useCommandPrefix']) ? $data['useCommandPrefix'] : true;
-$commandPrefix = isset($data['commandPrefix']) ? preg_replace('/[^a-zA-Z0-9]/', '', $data['commandPrefix']) : 'Rolemaster';
 $helpKeywords = isset($data['helpKeywords']) ? $data['helpKeywords'] : 'help,ai,Rolemaster,rp';
-
-// Build command name mapping
-$commandNameMap = [
-    'instruction' => isset($data['cmd_instruction']) && !empty($data['cmd_instruction']) ? 
-        preg_replace('/[^a-zA-Z0-9]/', '', $data['cmd_instruction']) : 'instruction',
-    'suggestion' => isset($data['cmd_suggestion']) && !empty($data['cmd_suggestion']) ? 
-        preg_replace('/[^a-zA-Z0-9]/', '', $data['cmd_suggestion']) : 'suggestion',
-    'impersonation' => isset($data['cmd_impersonation']) && !empty($data['cmd_impersonation']) ? 
-        preg_replace('/[^a-zA-Z0-9]/', '', $data['cmd_impersonation']) : 'impersonation',
-    'spawn' => isset($data['cmd_spawn']) && !empty($data['cmd_spawn']) ? 
-        preg_replace('/[^a-zA-Z0-9]/', '', $data['cmd_spawn']) : 'spawn',
-    'encounter' => isset($data['cmd_encounter']) && !empty($data['cmd_encounter']) ? 
-        preg_replace('/[^a-zA-Z0-9]/', '', $data['cmd_encounter']) : 'encounter'
-];
 
 // Load existing env vars if any
 $env_file = __DIR__ . "/bot_env.json";
 $env_vars = file_exists($env_file) ? json_decode(file_get_contents($env_file), true) : [];
+if (!is_array($env_vars)) {
+    $env_vars = [];
+}
+
+// Build command name mapping (merge posted values over existing map)
+$defaultCommandMap = [
+    'instruction' => 'director',
+    'suggestion' => 'suggestion',
+    'impersonation' => 'impersonation',
+    'spawn' => 'spawn',
+    'cheat' => 'cheat',
+    'encounter' => 'encounter'
+];
+$existingCommandMap = $defaultCommandMap;
+if (isset($env_vars['TBOT_COMMAND_NAME_MAP'])) {
+    $decoded = json_decode($env_vars['TBOT_COMMAND_NAME_MAP'], true);
+    if (is_array($decoded)) {
+        $existingCommandMap = array_merge($existingCommandMap, $decoded);
+    }
+}
+
+$mapKeyByPostField = [
+    'cmd_instruction' => 'instruction',
+    'cmd_suggestion' => 'suggestion',
+    'cmd_impersonation' => 'impersonation',
+    'cmd_spawn' => 'spawn',
+    'cmd_cheat' => 'cheat',
+    'cmd_encounter' => 'encounter'
+];
+
+$commandNameMap = $existingCommandMap;
+foreach ($mapKeyByPostField as $postField => $mapKey) {
+    if (isset($data[$postField])) {
+        $sanitized = preg_replace('/[^a-zA-Z0-9]/', '', (string)$data[$postField]);
+        if ($sanitized !== '') {
+            $commandNameMap[$mapKey] = $sanitized;
+        }
+    }
+}
 
 // Update env vars with new values
 $env_vars['TBOT_COOLDOWN'] = strval($cooldown);
@@ -45,11 +69,11 @@ $env_vars['TBOT_ROLEMASTER_INSTRUCTION_ENABLED'] = $rolemasterInstruction ? "1" 
 $env_vars['TBOT_ROLEMASTER_SUGGESTION_ENABLED'] = $rolemasterSuggestion ? "1" : "0";
 $env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'] = $rolemasterImpersonation ? "1" : "0";
 $env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] = $rolemasterSpawn ? "1" : "0";
+$env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] = $rolemasterCheat ? "1" : "0";
 $env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] = $rolemasterEncounter ? "1" : "0";
-$env_vars['TBOT_USE_COMMAND_PREFIX'] = $useCommandPrefix ? "1" : "0";
-$env_vars['TBOT_COMMAND_PREFIX'] = $commandPrefix;
 $env_vars['TBOT_HELP_KEYWORDS'] = $helpKeywords;
 $env_vars['TBOT_COMMAND_NAME_MAP'] = json_encode($commandNameMap);
+unset($env_vars['TBOT_ROLEMASTER_CHEAT_MODS_ONLY']);
 
 // Save env vars
 $success = file_put_contents($env_file, json_encode($env_vars));
@@ -67,9 +91,8 @@ if ($success) {
             'rolemasterSuggestion' => $env_vars['TBOT_ROLEMASTER_SUGGESTION_ENABLED'] === "1",
             'rolemasterImpersonation' => $env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'] === "1",
             'rolemasterSpawn' => $env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] === "1",
+            'rolemasterCheat' => $env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] === "1",
             'rolemasterEncounter' => $env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] === "1",
-            'useCommandPrefix' => $env_vars['TBOT_USE_COMMAND_PREFIX'] === "1",
-            'commandPrefix' => $env_vars['TBOT_COMMAND_PREFIX'],
             'helpKeywords' => $env_vars['TBOT_HELP_KEYWORDS'],
             'commandNameMap' => $commandNameMap
         ]

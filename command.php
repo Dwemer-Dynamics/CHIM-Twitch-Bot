@@ -45,9 +45,8 @@ class CommandHandler {
         $this->channel_owner = strtolower(getenv("TBOT_CHANNEL"));
 
         // Load settings from environment
-        $prefix_env = getenv("TBOT_USE_COMMAND_PREFIX");
         $this->command_prefix = getenv("TBOT_COMMAND_PREFIX") ?: "Rolemaster";
-        $this->use_command_prefix = $prefix_env === false ? true : $prefix_env === "1";
+        $this->use_command_prefix = false;
         
         $this->mods_only = (getenv("TBOT_MODS_ONLY") ?: "0") === "1";
         $this->subs_only = (getenv("TBOT_SUBS_ONLY") ?: "0") === "1";
@@ -58,12 +57,17 @@ class CommandHandler {
         
         // Load command name mapping
         $this->command_name_map = json_decode(getenv("TBOT_COMMAND_NAME_MAP") ?: '{}', true) ?: [
-            'instruction' => 'instruction',
+            'instruction' => 'director',
             'suggestion' => 'suggestion',
             'impersonation' => 'impersonation',
             'spawn' => 'spawn',
+            'cheat' => 'cheat',
             'encounter' => 'encounter'
         ];
+        $instructionAlias = strtolower(trim((string)($this->command_name_map['instruction'] ?? '')));
+        if ($instructionAlias === '' || $instructionAlias === 'instruction') {
+            $this->command_name_map['instruction'] = 'director';
+        }
         
         // Create reverse mapping for looking up dev commands from user commands
         $this->command_name_reverse_map = array_flip($this->command_name_map);
@@ -74,6 +78,7 @@ class CommandHandler {
             'suggestion' => (getenv("TBOT_ROLEMASTER_SUGGESTION_ENABLED") ?: "0") === "1",
             'impersonation' => (getenv("TBOT_ROLEMASTER_IMPERSONATION_ENABLED") ?: "0") === "1",
             'spawn' => (getenv("TBOT_ROLEMASTER_SPAWN_ENABLED") ?: "0") === "1",
+            'cheat' => (getenv("TBOT_ROLEMASTER_CHEAT_ENABLED") ?: "0") === "1",
             'encounter' => (getenv("TBOT_ROLEMASTER_ENCOUNTER_ENABLED") ?: "0") === "1"
         ];
 
@@ -220,10 +225,11 @@ class CommandHandler {
         // Check and reload lists if needed
         $this->checkAndReloadLists();
 
-        // Handle moderation commands
-        if (strpos($normalizedCommand, 'moderation:') === 0) {
+        // Handle moderation commands (new chim:* namespace + legacy moderation:* support)
+        $lowerNormalized = strtolower($normalizedCommand);
+        if (strpos($lowerNormalized, 'chim:') === 0 || strpos($lowerNormalized, 'moderation:') === 0) {
             if ($isMod || $user === $this->channel_owner) {
-                if (preg_match('/^moderation:([^:]+):?(.*)$/i', $normalizedCommand, $matches)) {
+                if (preg_match('/^(?:chim|moderation):([^:]+):?(.*)$/i', $normalizedCommand, $matches)) {
                     $type = strtolower(trim($matches[1]));
                     $freeText = isset($matches[2]) ? trim($matches[2]) : '';
                     $this->handleModerationCommand($user, $type, $freeText);
@@ -239,7 +245,7 @@ class CommandHandler {
             $type = $this->getDevCommandName($userType);
             $freeText = trim($matches[2]);
             
-            return $this->processCommand($user, $userType, $type, $freeText);
+            return $this->processCommand($user, $userType, $type, $freeText, $isMod);
         }
 
         // If we get here, the command format was invalid
@@ -251,7 +257,7 @@ class CommandHandler {
         $lowercaseMessage = strtolower($message);
         
         // Check for moderation commands first
-        if (strpos($lowercaseMessage, 'moderation:') === 0) {
+        if (strpos($lowercaseMessage, 'chim:') === 0 || strpos($lowercaseMessage, 'moderation:') === 0) {
             return $message; // Keep original case for moderation commands
         }
 
@@ -259,34 +265,21 @@ class CommandHandler {
         $lowercasePrefix = strtolower($this->command_prefix);
         $hasPrefix = strpos($lowercaseMessage, $lowercasePrefix . ':') === 0;
 
-        if ($this->use_command_prefix) {
-            // If prefix is required, it must be present
-            if (!$hasPrefix) {
-                return false;
-            }
-            return substr($message, strlen($this->command_prefix) + 1);
-        } else {
-            // Without required prefix, accept both formats
-            if ($hasPrefix) {
-                // If prefix exists, remove it
-                $message = substr($message, strlen($this->command_prefix) + 1);
-            }
-            
-            // Check if it has the basic command format (type:text)
-            if (preg_match('/^[a-zA-Z]+:/', strtolower($message))) {
-                return $message;
-            }
+        // Prefix is always optional for easier usage.
+        if ($hasPrefix) {
+            $message = substr($message, strlen($this->command_prefix) + 1);
+        }
+
+        // Check if it has the basic command format (type:text)
+        if (preg_match('/^[a-zA-Z0-9]+:/', strtolower($message))) {
+            return $message;
         }
 
         return false;
     }
 
     private function getCommandFormatHelp() {
-        if ($this->use_command_prefix) {
-            return "❌ Invalid command format. Use: {$this->command_prefix}:type:text or Moderation:type:";
-        } else {
-            return "❌ Invalid command format. Use: type:text or Moderation:type:";
-        }
+        return "❌ Invalid command format. Use: type:text (or {$this->command_prefix}:type:text) or chim:help / chim:permissions";
     }
 
     private function isHelpCommand($message) {
@@ -380,6 +373,9 @@ class CommandHandler {
             case 'spawn':
                 $helpMessage = "👥 $format - Create a bio for a new custom AI NPC. Describe the character you want to add to the scene. Example: $format" . "A wise old merchant who sells rare magical artifacts and speaks in riddles";
                 break;
+            case 'cheat':
+                $helpMessage = "😈 $format - Sends a cheat-mode player command (prefixed with # in-game). Uses the same bot permission rules as other commands. Example: $format" . "setrelationshiprank lydia 4";
+                break;
             case 'encounter':
                 $helpMessage = "⚔️ $format - Spawn 1-3 NPCs of a specific type for encounters. Must include one NPC type: " . implode(', ', $this->legal_encounter_npcs) . ". Example: $format" . "Bandits ambush the party on the road";
                 break;
@@ -391,7 +387,7 @@ class CommandHandler {
         $this->sendMessage($helpMessage);
     }
 
-    private function processCommand($user, $userType, $type, $freeText) {
+    private function processCommand($user, $userType, $type, $freeText, $isMod = false) {
         // Validate the type
         $validTypes = array_keys($this->command_types_enabled);
         $validUserTypes = array_map([$this, 'getUserCommandName'], $validTypes);
@@ -447,6 +443,12 @@ class CommandHandler {
             $helpMessage .= " 👥 $format Create a bio for a new custom AI NPC";
         }
 
+        if ($this->command_types_enabled['cheat']) {
+            $userCommand = $this->getUserCommandName('cheat');
+            $format = $this->use_command_prefix ? "{$this->command_prefix}:$userCommand:" : "$userCommand:";
+            $helpMessage .= " 😈 $format Send a cheat-mode player command";
+        }
+
         if ($this->command_types_enabled['encounter']) {
             $userCommand = $this->getUserCommandName('encounter');
             $format = $this->use_command_prefix ? "{$this->command_prefix}:$userCommand:" : "$userCommand:";
@@ -457,6 +459,15 @@ class CommandHandler {
     }
 
     public function executeCommand($user, $task, $type, $freeText) {
+        $isCheatCommand = ($type === 'cheat');
+        if ($isCheatCommand) {
+            // Allow both "cheat:text" and "cheat:#text" from chat.
+            $freeText = ltrim($freeText);
+            if (strpos($freeText, '#') === 0) {
+                $freeText = ltrim(substr($freeText, 1));
+            }
+        }
+
         // First sanitize common text characters that won't alter meaning
         // Handle both ASCII and Unicode quotes/apostrophes (smart quotes from Apple devices)
         $sanitizedFreeText = preg_replace('/[\'"`\x{2018}\x{2019}\x{201C}\x{201D}\x{201A}\x{201E}\x{00AB}\x{00BB}\x{2039}\x{203A}]/u', "", $freeText); // remove all quote variants
@@ -473,6 +484,13 @@ class CommandHandler {
         if (strlen($sanitizedFreeText) > 1024) {
             $this->handleInvalidCommand("❌ Command too long. Maximum length is 1024 characters.");
             return false;
+        }
+
+        if ($isCheatCommand) {
+            // Reuse Herika's built-in cheatmode parsing path in main.php.
+            $type = 'impersonation';
+            $sanitizedFreeText = '#' . ltrim($sanitizedFreeText);
+            error_log("[TBOT CHEAT] Routed cheat command payload: " . $sanitizedFreeText);
         }
 
         // Use the sanitized text for command execution
@@ -553,19 +571,25 @@ class CommandHandler {
                     $helpMessage .= "👥 $format | ";
                 }
                 
+                if ($this->command_types_enabled['cheat']) {
+                    $userCommand = $this->getUserCommandName('cheat');
+                    $format = $this->use_command_prefix ? "{$this->command_prefix}:$userCommand:" : "$userCommand:";
+                    $helpMessage .= "😈 $format | ";
+                }
+
                 if ($this->command_types_enabled['encounter']) {
                     $userCommand = $this->getUserCommandName('encounter');
                     $format = $this->use_command_prefix ? "{$this->command_prefix}:$userCommand:" : "$userCommand:";
                     $helpMessage .= "⚔️ $format | ";
                 }
                 
-                $helpMessage .= "🔒 Moderation:permissions:";
+                $helpMessage .= "🔒 chim:permissions";
                 $this->sendMessage($helpMessage);
                 break;
                 
             case 'permissions':
                 // Send current permission settings
-                $permMessage = sprintf("🔒 Current Permissions: Mods Only: %s | Subs Only: %s | Whitelist: %s | Commands: %s%s%s%s%s",
+                $permMessage = sprintf("🔒 Current Permissions: Mods Only: %s | Subs Only: %s | Whitelist: %s | Commands: %s%s%s%s%s%s",
                     $this->mods_only ? "✅" : "❌",
                     $this->subs_only ? "✅" : "❌",
                     $this->whitelist_enabled ? "✅" : "❌",
@@ -573,13 +597,14 @@ class CommandHandler {
                     $this->command_types_enabled['suggestion'] ? "🕒" : "❌",
                     $this->command_types_enabled['impersonation'] ? "🗣️" : "❌",
                     $this->command_types_enabled['spawn'] ? "👥" : "❌",
+                    $this->command_types_enabled['cheat'] ? "😈" : "❌",
                     $this->command_types_enabled['encounter'] ? "⚔️" : "❌"
                 );
                 $this->sendMessage($permMessage);
                 break;
                 
             default:
-                $this->handleInvalidCommand("❌ Unknown moderation command. Use Moderation:help: to see available commands.");
+                $this->handleInvalidCommand("❌ Unknown moderation command. Use chim:help to see available commands.");
                 break;
         }
     }
