@@ -15,7 +15,11 @@ $rolemasterImpersonation = isset($data['rolemasterImpersonation']) ? $data['role
 $rolemasterSpawn = isset($data['rolemasterSpawn']) ? $data['rolemasterSpawn'] : false;
 $rolemasterCheat = isset($data['rolemasterCheat']) ? $data['rolemasterCheat'] : false;
 $rolemasterEncounter = isset($data['rolemasterEncounter']) ? $data['rolemasterEncounter'] : false;
+$twitchContextEnabled = isset($data['twitchContextEnabled']) ? $data['twitchContextEnabled'] : false;
+$twitchContextCount = isset($data['twitchContextCount']) ? intval($data['twitchContextCount']) : 25;
 $helpKeywords = isset($data['helpKeywords']) ? $data['helpKeywords'] : 'help,ai,Rolemaster,rp';
+
+$twitchContextCount = max(10, min(100, $twitchContextCount));
 
 // Load existing env vars if any
 $env_file = __DIR__ . "/bot_env.json";
@@ -71,6 +75,8 @@ $env_vars['TBOT_ROLEMASTER_IMPERSONATION_ENABLED'] = $rolemasterImpersonation ? 
 $env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] = $rolemasterSpawn ? "1" : "0";
 $env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] = $rolemasterCheat ? "1" : "0";
 $env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] = $rolemasterEncounter ? "1" : "0";
+$env_vars['TBOT_TWITCH_CONTEXT_ENABLED'] = $twitchContextEnabled ? "1" : "0";
+$env_vars['TBOT_TWITCH_CONTEXT_COUNT'] = strval($twitchContextCount);
 $env_vars['TBOT_HELP_KEYWORDS'] = $helpKeywords;
 $env_vars['TBOT_COMMAND_NAME_MAP'] = json_encode($commandNameMap);
 unset($env_vars['TBOT_ROLEMASTER_CHEAT_MODS_ONLY']);
@@ -93,6 +99,8 @@ if ($success) {
             'rolemasterSpawn' => $env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] === "1",
             'rolemasterCheat' => $env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] === "1",
             'rolemasterEncounter' => $env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] === "1",
+            'twitchContextEnabled' => $env_vars['TBOT_TWITCH_CONTEXT_ENABLED'] === "1",
+            'twitchContextCount' => intval($env_vars['TBOT_TWITCH_CONTEXT_COUNT']),
             'helpKeywords' => $env_vars['TBOT_HELP_KEYWORDS'],
             'commandNameMap' => $commandNameMap
         ]

@@ -16,6 +16,8 @@ $defaultSettings = [
     'rolemasterSpawn' => false,
     'rolemasterCheat' => false,
     'rolemasterEncounter' => false,
+    'twitchContextEnabled' => false,
+    'twitchContextCount' => 25,
     'helpKeywords' => 'help,ai,Rolemaster,rp',
     'commandNameMap' => [
         'instruction' => 'director',
@@ -52,6 +54,8 @@ if (file_exists($env_file)) {
     if (isset($env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'])) $settings['rolemasterSpawn'] = $env_vars['TBOT_ROLEMASTER_SPAWN_ENABLED'] === "1";
     if (isset($env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'])) $settings['rolemasterCheat'] = $env_vars['TBOT_ROLEMASTER_CHEAT_ENABLED'] === "1";
     if (isset($env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'])) $settings['rolemasterEncounter'] = $env_vars['TBOT_ROLEMASTER_ENCOUNTER_ENABLED'] === "1";
+    if (isset($env_vars['TBOT_TWITCH_CONTEXT_ENABLED'])) $settings['twitchContextEnabled'] = $env_vars['TBOT_TWITCH_CONTEXT_ENABLED'] === "1";
+    if (isset($env_vars['TBOT_TWITCH_CONTEXT_COUNT'])) $settings['twitchContextCount'] = intval($env_vars['TBOT_TWITCH_CONTEXT_COUNT']);
     if (isset($env_vars['TBOT_HELP_KEYWORDS'])) $settings['helpKeywords'] = $env_vars['TBOT_HELP_KEYWORDS'];
     if (isset($env_vars['TBOT_COMMAND_NAME_MAP'])) {
         $commandMap = json_decode($env_vars['TBOT_COMMAND_NAME_MAP'], true);
@@ -64,6 +68,8 @@ if (file_exists($env_file)) {
         }
     }
 }
+
+$settings['twitchContextCount'] = max(10, min(100, intval($settings['twitchContextCount'] ?? 25)));
 
 echo json_encode([
     'success' => true,

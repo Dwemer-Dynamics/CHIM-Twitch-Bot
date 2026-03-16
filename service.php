@@ -41,6 +41,7 @@ $USE_COMMAND_PREFIX = (getenv("TBOT_USE_COMMAND_PREFIX") ?: "0") === "1"; // Def
 
 // Help keywords configuration
 $HELP_KEYWORDS = array_filter(explode(',', getenv("TBOT_HELP_KEYWORDS") ?: "help,ai,Rolemaster,rp"));
+$TWITCH_CONTEXT_BUFFER_SIZE = 100;
 
 // Global variables for command timing
 $last_command_time = 0;
@@ -79,6 +80,83 @@ function censorSensitiveInfo($text) {
     // Censor OAuth tokens
     $text = preg_replace('/oauth:[a-z0-9]+/', 'oauth:********', $text);
     return $text;
+}
+
+function resolveTwitchContextFilePath() {
+    // Standard Herika plugin layout: HerikaServer/ext/CHIM-Twitch-Bot
+    $likelyEngineRoot = dirname(dirname(__DIR__));
+    $likelyLogDir = $likelyEngineRoot . DIRECTORY_SEPARATOR . "log";
+    if (is_dir($likelyLogDir) && is_writable($likelyLogDir)) {
+        return $likelyLogDir . DIRECTORY_SEPARATOR . "twitch_chat_context.json";
+    }
+
+    $managerScript = getenv("TBOT_MANAGER_SCRIPT");
+    if (!empty($managerScript)) {
+        $serviceDir = dirname($managerScript);
+        $engineRoot = dirname($serviceDir);
+        if (!empty($engineRoot)) {
+            $logDir = $engineRoot . DIRECTORY_SEPARATOR . "log";
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0777, true);
+            }
+            if (is_dir($logDir) && is_writable($logDir)) {
+                return $logDir . DIRECTORY_SEPARATOR . "twitch_chat_context.json";
+            }
+        }
+    }
+
+    return __DIR__ . DIRECTORY_SEPARATOR . "twitch_chat_context.json";
+}
+
+function sanitizeTwitchContextValue($value) {
+    $value = preg_replace('/[\r\n\t]+/', ' ', (string)$value);
+    $value = trim($value);
+    if (strlen($value) > 350) {
+        $value = substr($value, 0, 350);
+    }
+    return $value;
+}
+
+function appendTwitchContextMessage($user, $message) {
+    global $TWITCH_CONTEXT_BUFFER_SIZE;
+
+    $filePath = resolveTwitchContextFilePath();
+    $safeUser = sanitizeTwitchContextValue($user);
+    $safeMessage = sanitizeTwitchContextValue($message);
+
+    if ($safeUser === "" || $safeMessage === "") {
+        return;
+    }
+
+    $messages = [];
+    if (file_exists($filePath)) {
+        $raw = file_get_contents($filePath);
+        if ($raw !== false) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded) && isset($decoded["messages"]) && is_array($decoded["messages"])) {
+                $messages = $decoded["messages"];
+            } elseif (is_array($decoded)) {
+                $messages = $decoded;
+            }
+        }
+    }
+
+    $messages[] = [
+        "ts" => time(),
+        "user" => $safeUser,
+        "message" => $safeMessage
+    ];
+
+    if (count($messages) > $TWITCH_CONTEXT_BUFFER_SIZE) {
+        $messages = array_slice($messages, -1 * $TWITCH_CONTEXT_BUFFER_SIZE);
+    }
+
+    $payload = [
+        "messages" => array_values($messages),
+        "updated_at" => time()
+    ];
+
+    @file_put_contents($filePath, json_encode($payload), LOCK_EX);
 }
 
 echo date(DATE_RFC2822) . PHP_EOL;
@@ -244,6 +322,10 @@ function runBot($server, $port, $username, $oauth, $channel)
                          (isset($tags['badges']) && strpos($tags['badges'], 'subscriber/') !== false);
                 
                 echo "💬 $user: $message (Sub: " . ($isSub ? 'Yes' : 'No') . ", Mod: " . ($isMod ? 'Yes' : 'No') . ")\n";
+
+                if ($user !== strtolower($username)) {
+                    appendTwitchContextMessage($user, $message);
+                }
                 
                 // Let CommandHandler handle the message
                 $commandHandler->parseCommand($user, $message, $isMod, $isSub);

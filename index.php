@@ -20,6 +20,8 @@ if (!file_exists($env_file) || empty($env_vars)) {
         'TBOT_ROLEMASTER_SPAWN_ENABLED' => '0',
         'TBOT_ROLEMASTER_CHEAT_ENABLED' => '0',
         'TBOT_ROLEMASTER_ENCOUNTER_ENABLED' => '0',
+        'TBOT_TWITCH_CONTEXT_ENABLED' => '0',
+        'TBOT_TWITCH_CONTEXT_COUNT' => '25',
         'TBOT_USE_COMMAND_PREFIX' => '0',
         'TBOT_COMMAND_PREFIX' => 'Rolemaster',
         'TBOT_HELP_KEYWORDS' => 'help,ai,Rolemaster,rp',
@@ -37,6 +39,17 @@ if (!file_exists($env_file) || empty($env_vars)) {
     $env_vars = array_merge($default_env_vars, $env_vars);
     
     // Save the initialized environment file
+    file_put_contents($env_file, json_encode($env_vars));
+}
+
+// Ensure new keys exist for older installs.
+$default_env_keys = [
+    'TBOT_TWITCH_CONTEXT_ENABLED' => '0',
+    'TBOT_TWITCH_CONTEXT_COUNT' => '25'
+];
+$merged_env_vars = array_merge($default_env_keys, is_array($env_vars) ? $env_vars : []);
+if ($merged_env_vars !== $env_vars) {
+    $env_vars = $merged_env_vars;
     file_put_contents($env_file, json_encode($env_vars));
 }
 
@@ -174,7 +187,7 @@ header('Content-Type: text/html; charset=utf-8');
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
     <link rel="stylesheet" href="main.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="main.js"></script>
+    <script src="main.js?v=<?= @filemtime(__DIR__ . '/main.js') ?: time() ?>"></script>
     <script>
         let lastLogContent = '';
         
@@ -237,6 +250,9 @@ header('Content-Type: text/html; charset=utf-8');
             const rolemasterSpawnToggle = document.getElementById('rolemaster_spawn');
             const rolemasterCheatToggle = document.getElementById('rolemaster_cheat');
             const rolemasterEncounterToggle = document.getElementById('rolemaster_encounter');
+            const twitchContextToggle = document.getElementById('twitch_context_enabled');
+            const twitchContextCountSlider = document.getElementById('twitch_context_count');
+            const twitchContextCountInput = document.getElementById('twitch-context-count-value-input');
             const saveButton = document.querySelector('.save-controls-btn');
             const settingsGroup = document.querySelector('.settings-group');
             const configureButton = document.querySelector('.settings-button');
@@ -256,6 +272,9 @@ header('Content-Type: text/html; charset=utf-8');
                 rolemasterSpawnToggle,
                 rolemasterCheatToggle,
                 rolemasterEncounterToggle,
+                twitchContextToggle,
+                twitchContextCountSlider,
+                twitchContextCountInput,
                 saveButton,
                 configureButton
             ];
@@ -298,6 +317,8 @@ header('Content-Type: text/html; charset=utf-8');
             const rolemasterSpawn = document.getElementById('rolemaster_spawn').checked;
             const rolemasterCheat = document.getElementById('rolemaster_cheat').checked;
             const rolemasterEncounter = document.getElementById('rolemaster_encounter').checked;
+            const twitchContextEnabled = document.getElementById('twitch_context_enabled').checked;
+            const twitchContextCount = Math.max(10, Math.min(100, parseInt(document.getElementById('twitch_context_count').value) || 25));
 
             fetch('update_bot_settings.php', {
                 method: 'POST',
@@ -314,7 +335,9 @@ header('Content-Type: text/html; charset=utf-8');
                     rolemasterImpersonation: rolemasterImpersonation,
                     rolemasterSpawn: rolemasterSpawn,
                     rolemasterCheat: rolemasterCheat,
-                    rolemasterEncounter: rolemasterEncounter
+                    rolemasterEncounter: rolemasterEncounter,
+                    twitchContextEnabled: twitchContextEnabled,
+                    twitchContextCount: twitchContextCount
                 })
             })
             .then(response => response.json())
@@ -330,6 +353,10 @@ header('Content-Type: text/html; charset=utf-8');
                     document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation;
                     document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn;
                     document.getElementById('rolemaster_cheat').checked = data.settings.rolemasterCheat;
+                    document.getElementById('twitch_context_enabled').checked = data.settings.twitchContextEnabled ?? false;
+                    document.getElementById('twitch_context_count').value = data.settings.twitchContextCount ?? 25;
+                    document.getElementById('twitch-context-count-value-input').value = data.settings.twitchContextCount ?? 25;
+                    refreshTwitchContextControls();
                     // Encounter command is disabled
         // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter;
                     
@@ -366,6 +393,10 @@ header('Content-Type: text/html; charset=utf-8');
                         document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation ?? true;
                         document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? false;
                         document.getElementById('rolemaster_cheat').checked = data.settings.rolemasterCheat ?? false;
+                        document.getElementById('twitch_context_enabled').checked = data.settings.twitchContextEnabled ?? false;
+                        document.getElementById('twitch_context_count').value = data.settings.twitchContextCount ?? 25;
+                        document.getElementById('twitch-context-count-value-input').value = data.settings.twitchContextCount ?? 25;
+                        refreshTwitchContextControls();
                         // Encounter command is disabled
         // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter ?? true;
                         
@@ -387,6 +418,10 @@ header('Content-Type: text/html; charset=utf-8');
                         document.getElementById('rolemaster_impersonation').checked = true;
                         document.getElementById('rolemaster_spawn').checked = false;
                         document.getElementById('rolemaster_cheat').checked = false;
+                        document.getElementById('twitch_context_enabled').checked = false;
+                        document.getElementById('twitch_context_count').value = 25;
+                        document.getElementById('twitch-context-count-value-input').value = 25;
+                        refreshTwitchContextControls();
                         // Encounter command is disabled
                         // document.getElementById('rolemaster_encounter').checked = true;
                         document.getElementById('whitelist_btn').disabled = true; // Disabled if settings fail to load
@@ -409,6 +444,10 @@ header('Content-Type: text/html; charset=utf-8');
                     document.getElementById('rolemaster_impersonation').checked = true;
                     document.getElementById('rolemaster_spawn').checked = false;
                     document.getElementById('rolemaster_cheat').checked = false;
+                    document.getElementById('twitch_context_enabled').checked = false;
+                    document.getElementById('twitch_context_count').value = 25;
+                    document.getElementById('twitch-context-count-value-input').value = 25;
+                    refreshTwitchContextControls();
                     // Encounter command is disabled
                     // document.getElementById('rolemaster_encounter').checked = true;
                     document.getElementById('whitelist_btn').disabled = true; // Disabled on error
@@ -439,6 +478,42 @@ header('Content-Type: text/html; charset=utf-8');
                 cooldownSlider.value = value;
                 cooldownValueInput.value = value; // Ensure input reflects clamped value
             }
+        }
+
+        function refreshTwitchContextControls() {
+            const toggle = document.getElementById('twitch_context_enabled');
+            const slider = document.getElementById('twitch_context_count');
+            const numberInput = document.getElementById('twitch-context-count-value-input');
+            if (!toggle || !slider || !numberInput) {
+                return;
+            }
+            const enabled = !!toggle.checked;
+            slider.disabled = !enabled;
+            numberInput.disabled = !enabled;
+        }
+
+        function updateTwitchContextCountDisplay() {
+            const slider = document.getElementById('twitch_context_count');
+            const numberInput = document.getElementById('twitch-context-count-value-input');
+            if (!slider || !numberInput) {
+                return;
+            }
+            numberInput.value = slider.value;
+        }
+
+        function updateTwitchContextCountFromInput() {
+            const slider = document.getElementById('twitch_context_count');
+            const numberInput = document.getElementById('twitch-context-count-value-input');
+            if (!slider || !numberInput) {
+                return;
+            }
+            let value = parseInt(numberInput.value, 10);
+            if (isNaN(value)) {
+                value = 25;
+            }
+            value = Math.max(10, Math.min(100, value));
+            slider.value = value;
+            numberInput.value = value;
         }
 
         // Initialize controls state on page load
@@ -501,9 +576,32 @@ header('Content-Type: text/html; charset=utf-8');
                      }
                  });
             }
+
+            const twitchContextToggle = document.getElementById('twitch_context_enabled');
+            if (twitchContextToggle) {
+                twitchContextToggle.addEventListener('change', refreshTwitchContextControls);
+            }
+
+            const twitchContextSlider = document.getElementById('twitch_context_count');
+            if (twitchContextSlider) {
+                twitchContextSlider.addEventListener('input', updateTwitchContextCountDisplay);
+            }
+
+            const twitchContextInput = document.getElementById('twitch-context-count-value-input');
+            if (twitchContextInput) {
+                twitchContextInput.addEventListener('change', updateTwitchContextCountFromInput);
+                twitchContextInput.addEventListener('input', () => {
+                    const value = parseInt(twitchContextInput.value, 10);
+                    if (!isNaN(value) && twitchContextSlider) {
+                        twitchContextSlider.value = Math.max(10, Math.min(100, value));
+                    }
+                });
+            }
             
             // Initial update for cooldown display
             updateCooldownDisplay();
+            updateTwitchContextCountDisplay();
+            refreshTwitchContextControls();
         });
 
         // Add this function to update the test command placeholder
@@ -742,6 +840,28 @@ header('Content-Type: text/html; charset=utf-8');
                                     aria-label="Command Cooldown Value">
                                 <span class="cooldown-units">seconds</span>
                             </div>
+
+                            <div class="toggle-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="twitch_context_enabled" name="tbot_twitch_context_enabled"
+                                        <?= ($env_vars['TBOT_TWITCH_CONTEXT_ENABLED'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label">Twitch Chat Context</span>
+                            </div>
+                            <div class="help-keywords-container">
+                                <span class="input-description">For best results you may want to adjust the prompt head to allow for AI NPC's to be aware of twitch chat.</span>
+                            </div>
+
+                            <div class="cooldown-container">
+                                <label for="twitch_context_count">Recent Twitch Messages:</label>
+                                <input type="range" id="twitch_context_count" name="tbot_twitch_context_count" min="10" max="100" step="1"
+                                    value="<?= htmlspecialchars($env_vars['TBOT_TWITCH_CONTEXT_COUNT'] ?? '25') ?>">
+                                <input type="number" id="twitch-context-count-value-input" min="10" max="100"
+                                    value="<?= htmlspecialchars($env_vars['TBOT_TWITCH_CONTEXT_COUNT'] ?? '25') ?>"
+                                    aria-label="Twitch Context Message Count">
+                                <span class="cooldown-units">messages</span>
+                            </div>
                         </div>
                     </div>
 
@@ -802,11 +922,11 @@ header('Content-Type: text/html; charset=utf-8');
                     <p class="status">Status: <?= $is_running ? "&#x1F7E2; Running" : "&#x1F534; Stopped" ?></p>
                     <!-- Buttons MOVED here -->
                     <div class="button-group header-button-group">
-                        <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?> small-action-btn" form="connection-form">
+                        <button type="submit" name="action" value="<?= $is_running ? 'stop' : 'start' ?>" class="<?= $is_running ? 'stop-btn' : 'start-btn' ?> small-action-btn" form="connection-form" formnovalidate>
                             <?= $is_running ? '&#x23F9; Stop Bot' : '&#x25B6;&#xFE0F; Start Bot' ?>
                         </button>
                     </div>
-                    <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" onclick="updateLogs(); return false;">&#x1F504; Refresh</button>
+                    <button type="submit" name="action" value="refresh" class="refresh-btn" form="connection-form" formnovalidate onclick="updateLogs(); return false;">&#x1F504; Refresh</button>
                     <button type="button" class="refresh-btn" onclick="window.location.href='index.php?download_log=1'" title="Download full bot log">&#x1F4E5; Download Log</button>
                  </div>
             </h2>

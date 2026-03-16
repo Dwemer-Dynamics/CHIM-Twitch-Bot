@@ -147,7 +147,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle connection settings form submission
     if (connectionForm) {
+        const actionButtons = document.querySelectorAll('button[name="action"][form="connection-form"]');
+        actionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                connectionForm.dataset.submitMode = 'action';
+            });
+        });
+
         connectionForm.addEventListener('submit', function(e) {
+            const submitter = e.submitter || document.activeElement;
+            const isActionSubmit = (
+                (submitter && submitter.name === 'action') ||
+                connectionForm.dataset.submitMode === 'action'
+            );
+
+            if (isActionSubmit) {
+                connectionForm.dataset.submitMode = '';
+                return; // Let normal POST happen for start/stop/refresh buttons.
+            }
+
             e.preventDefault();
             
             const usernameEl = document.getElementById('username');
@@ -226,6 +244,10 @@ function saveSettings() {
     const rolemasterImpersonation = document.getElementById('rolemaster_impersonation').checked;
     const rolemasterSpawn = document.getElementById('rolemaster_spawn').checked;
     const rolemasterCheat = document.getElementById('rolemaster_cheat').checked;
+    const twitchContextEnabledEl = document.getElementById('twitch_context_enabled');
+    const twitchContextCountEl = document.getElementById('twitch_context_count');
+    const twitchContextEnabled = twitchContextEnabledEl ? twitchContextEnabledEl.checked : false;
+    const twitchContextCount = twitchContextCountEl ? Math.max(10, Math.min(100, parseInt(twitchContextCountEl.value) || 25)) : 25;
             // Encounter command is disabled
         // const rolemasterEncounter = document.getElementById('rolemaster_encounter').checked;
     const helpKeywords = document.getElementById('help_keywords').value;
@@ -247,6 +269,8 @@ function saveSettings() {
         rolemasterImpersonation: rolemasterImpersonation,
         rolemasterSpawn: rolemasterSpawn,
         rolemasterCheat: rolemasterCheat,
+        twitchContextEnabled: twitchContextEnabled,
+        twitchContextCount: twitchContextCount,
         // Encounter command is disabled
         // rolemasterEncounter: rolemasterEncounter,
         helpKeywords: helpKeywords
@@ -298,6 +322,12 @@ function loadSettings() {
                 document.getElementById('rolemaster_impersonation').checked = data.settings.rolemasterImpersonation ?? true;
                 document.getElementById('rolemaster_spawn').checked = data.settings.rolemasterSpawn ?? false;
                 document.getElementById('rolemaster_cheat').checked = data.settings.rolemasterCheat ?? false;
+                const twitchContextEnabledEl = document.getElementById('twitch_context_enabled');
+                const twitchContextCountEl = document.getElementById('twitch_context_count');
+                const twitchContextCountInputEl = document.getElementById('twitch-context-count-value-input');
+                if (twitchContextEnabledEl) twitchContextEnabledEl.checked = data.settings.twitchContextEnabled ?? false;
+                if (twitchContextCountEl) twitchContextCountEl.value = data.settings.twitchContextCount ?? 25;
+                if (twitchContextCountInputEl) twitchContextCountInputEl.value = data.settings.twitchContextCount ?? 25;
                 // Encounter command is disabled
         // document.getElementById('rolemaster_encounter').checked = data.settings.rolemasterEncounter ?? true;
                 document.getElementById('help_keywords').value = data.settings.helpKeywords ?? 'help,ai,Rolemaster,rp';
