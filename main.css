@@ -52,6 +52,7 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
 h1 {
@@ -189,9 +190,10 @@ button:hover {
     font-family: 'Consolas', monospace;
     color: #00ff00;
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 /* Add spacing between log entries */

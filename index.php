@@ -64,8 +64,7 @@ if (!file_exists( __DIR__."/vendor/autoload.php")) {
 // Add new endpoint for fetching logs
 if (isset($_GET['fetch_logs'])) {
     header('Content-Type: application/json');
-    $log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : [];
-    $log_content = array_reverse($log_content);
+    $log_content = file_exists($log_file) ? file($log_file, FILE_IGNORE_NEW_LINES) : [];
     echo json_encode(['logs' => $log_content]);
     exit;
 }
@@ -175,7 +174,7 @@ function is_bot_running($pid_file) {
 
 // Check if bot is running
 $is_running = is_bot_running($pid_file);
-$log_content = file_exists($log_file) ? array_slice(file($log_file), -25) : []; // Get last 15 lines
+$log_content = file_exists($log_file) ? file($log_file, FILE_IGNORE_NEW_LINES) : [];
 header('Content-Type: text/html; charset=utf-8');
 ?>
 
@@ -195,10 +194,23 @@ header('Content-Type: text/html; charset=utf-8');
             fetch('index.php?fetch_logs')
                 .then(response => response.json())
                 .then(data => {
+                    const logBox = document.querySelector('.log-box');
+                    if (!logBox) {
+                        return;
+                    }
+                    const isNearBottom = (logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight) < 24;
+                    const previousScrollTop = logBox.scrollTop;
+                    const previousScrollHeight = logBox.scrollHeight;
                     const newContent = data.logs.join('<br>');
                     if (newContent !== lastLogContent) {
-                        document.querySelector('.log-box').innerHTML = newContent || 'No logs yet.';
+                        logBox.innerHTML = newContent || 'No logs yet.';
                         lastLogContent = newContent;
+                        if (isNearBottom) {
+                            logBox.scrollTop = logBox.scrollHeight;
+                        } else {
+                            const heightDelta = logBox.scrollHeight - previousScrollHeight;
+                            logBox.scrollTop = previousScrollTop + heightDelta;
+                        }
                     }
                 })
                 .catch(error => console.error('Error fetching logs:', error));
@@ -231,6 +243,11 @@ header('Content-Type: text/html; charset=utf-8');
 
         // Initial update
         document.addEventListener('DOMContentLoaded', () => {
+            const logBox = document.querySelector('.log-box');
+            if (logBox) {
+                lastLogContent = logBox.innerHTML;
+                logBox.scrollTop = logBox.scrollHeight;
+            }
             updateLogs();
             <?php if ($notification): ?>
             showToast(<?= json_encode($notification) ?>, <?= json_encode($notification_type) ?>);
@@ -933,7 +950,6 @@ header('Content-Type: text/html; charset=utf-8');
             <div class="log-box">
                 <?php
                 if (!empty($log_content)) {
-                    $log_content = array_reverse($log_content);
                     echo implode("<br>", $log_content);
                 } else {
                     echo "No logs yet.";
